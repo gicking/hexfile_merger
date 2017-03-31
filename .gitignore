@@ -1,0 +1,11 @@
+# hexfiles
+*.s19
+*.hex
+#*.txt
+
+# object files
+*.o
+
+# executable
+hexfile_merger
+hexfile_merger.exe
