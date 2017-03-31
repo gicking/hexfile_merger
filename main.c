@@ -11,8 +11,10 @@
 
    usage: hexfile_merger [-h] -i infile_1 -i infile_2 ... [-o outfile]
       -h    print this help
-      -i    name of hexfile to import (default: none)
-      -o    name of output hexfile (default: outfile.s19)
+      -i    name of s19/hex/txt file to import (default: none)
+      -o    name of output s19/hex/txt file (default: outfile.s19)
+      -v    verbose output (default: no)
+      -q    don't prompt for <return> prior to exit (default: promt)
 
    \note program not yet fully tested!
 */
@@ -31,7 +33,7 @@
 
 
 /// version number (float)
-#define VERSION 1.0
+#define VERSION 1.1
 
 /// max length of filenames
 #define  STRLEN   1000
@@ -66,6 +68,7 @@ int main(int argc, char ** argv) {
   uint32_t  i;                              // generic variable
   
   // initialize globals
+  g_verbose     = 0;                        // output verbosity level
   g_pauseOnExit = 1;                        // prompt for <return> prior to exit
   
 
@@ -103,6 +106,7 @@ int main(int argc, char ** argv) {
     printf("  -h    print this help\n");
     printf("  -i    name of s19/hex/txt file to import (default: none)\n");
     printf("  -o    name of output s19/hex/txt file (default: outfile.s19)\n");
+    printf("  -v    verbose output (default: no)\n");
     printf("  -q    don't prompt for <return> prior to exit (default: promt)\n");
     Exit(1);
   }
@@ -136,11 +140,11 @@ int main(int argc, char ** argv) {
     
       // convert to memory image, depending on file type 
       if (strstr(infile, ".s19") != NULL)                                             // Motorola S-record format
-        convert_s19(buf, &imageStart, &numBytes, image, 0);
+        convert_s19(buf, &imageStart, &numBytes, image, g_verbose);
       else if ((strstr(infile, ".hex") != NULL) || (strstr(infile, ".ihx") != NULL))  // Intel HEX-format
-        convert_hex(buf, &imageStart, &numBytes, image, 0);
+        convert_hex(buf, &imageStart, &numBytes, image, g_verbose);
       else if (strstr(infile, ".txt") != NULL)                                        // text table (hex addr / data)
-        convert_txt(buf, &imageStart, &numBytes, image, 0);
+        convert_txt(buf, &imageStart, &numBytes, image, g_verbose);
       else {
         fprintf(stderr, "\n\nerror: unsupported input file format for '%s', exit!\n\n", infile);
         Exit(1);
@@ -156,13 +160,20 @@ int main(int argc, char ** argv) {
 
 
     // store name of output hexfile
-    else if (!strcmp(argv[i], "-o"))
+    else if (!strcmp(argv[i], "-o")) {
       strncpy(outfile, argv[++i], STRLEN-1);
+    }
 
+
+    // verbose output
+    else if (!strcmp(argv[i], "-v")) {
+      g_verbose = 1;
+    }
 
     // don't promt for <return> prior to exit
-    else if (!strcmp(argv[i], "-q"))
+    else if (!strcmp(argv[i], "-q")) {
       g_pauseOnExit = 0;
+    }
 
 
     // else print help

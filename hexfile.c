@@ -131,7 +131,7 @@ void load_hexfile(char *filename, char *buf, uint32_t bufsize) {
    \param[in]  buf        memory buffer to read from (0-terminated)
    \param[out] addrStart  start address of image (=lowest address in hexfile)
    \param[out] numBytes   number of bytes in image
-   \param[out] image      RAM image of hexfile (high byte != 0 indicates value is set)
+   \param[out] image      RAM image of hexfile. High byte != 0 indicates value is set. Index 0 corresponds to address addrStart
    \param[in]  verbose    level of verbosity and if application exits on fail 
    
    convert memory buffer containing s19 hexfile to memory buffer. For description of 
@@ -268,7 +268,7 @@ void convert_s19(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
         sprintf(tmp,"0x00");
         strncpy(tmp+2, line+idx, 2);                // get next 2 chars as string
         sscanf(tmp, "%x", &val);                    // interpret as hex data
-        image[addr+i] = (uint16_t) val | 0xFF00;    // store data byte in buffer and set high byte
+        image[addr+i-addrMin] = (uint16_t) val | 0xFF00;    // store data byte in buffer and set high byte
         idx+=2;                                     // advance 2 chars in line
       }
     
@@ -307,7 +307,7 @@ void convert_s19(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
    \param[in]  buf        memory buffer to read from (0-terminated)
    \param[out] addrStart  start address of image (=lowest address in hexfile)
    \param[out] numBytes   number of bytes in image
-   \param[out] image      RAM image of hexfile (high byte != 0 indicates value is set)
+   \param[out] image      RAM image of hexfile. High byte != 0 indicates value is set. Index 0 corresponds to address addrStart
    \param[in]  verbose    level of verbosity and if application exits on fail 
    
    convert memory buffer containing intel hexfile to memory buffer. For description of 
@@ -326,6 +326,7 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
     fflush(stdout);
   }
   
+
   // 1st run: check syntax and extract min/max addresses
   linecount = 0;
   addrMin = 0xFFFFFFFF;
@@ -333,24 +334,28 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
   addrOff = 0x00000000;
   p = buf;
   while (get_line(&p, line)) {
-  
+
     // increase line counter
     linecount++;
     chkCalc = 0x00;
+  
+    // debug
+    //fprintf(stderr, "\n%d  '%s'\n", linecount, line);
     
     // check 1st char (must be ':')
     if (line[0] != ':') {
       fprintf(stderr, "\n\nerror in 'convert_hex()': line %d does not start with 'S', exit!\n\n", linecount);
       Exit(1);
     }
-    
+
     // record length (address + data + checksum)
     sprintf(tmp,"0x00");
     strncpy(tmp+2, line+1, 2);
     sscanf(tmp, "%x", &val);
     len = val;
     chkCalc += len;              // increase checksum
-    
+    //fprintf(stderr, "len = 0x%02x\n", len);
+
     // 16b address
     addr = 0;
     sprintf(tmp,"0x0000");
@@ -359,6 +364,7 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
     chkCalc += (uint8_t) (val >> 8);
     chkCalc += (uint8_t)  val;
     addr = val + addrOff;         // add offset for >64kB addresses
+    //fprintf(stderr, "addr = 0x%04x\n", addr);
 
     // record type
     sprintf(tmp,"0x00");
@@ -366,6 +372,7 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
     sscanf(tmp, "%x", &val);
     type = val;
     chkCalc += type;              // increase checksum
+    //fprintf(stderr, "type = 0x%02x\n", type);
     
     // record contains data
     if (type==0) {
@@ -376,34 +383,55 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
         sscanf(tmp, "%x", &val);        // interpret as hex data
         chkCalc += val;                 // increase checksum
         idx+=2;                         // advance 2 chars in line
+        //fprintf(stderr, "data[%d] = 0x%02x\n", i, val);
       }
+
+      // store min/max address
+      if (addr < addrMin)
+        addrMin = addr;
+      if (addr+len-1 > addrMax)
+        addrMax = addr+len-1;
+
     } // type==0
 
-    // EOF indicator
+    // EOF indicator -> ignore
     else if (type==1)
       continue; 
-    
+
+    // extended segment addresses not yet supported
+    else if (type==2) {
+      fprintf(stderr, "\n\nerror in 'convert_hex()': extended segment address type 2 not supported in line %d not supported, exit!\n\n", linecount);
+      Exit(1);
+    }
+
     // extended address (=upper 16b of address for following data records)
     else if (type==4) {
+      idx = 13;                         // start at index 9
       sprintf(tmp,"0x0000");
       strncpy(tmp+2, line+9, 4);        // get next 4 chars as string
-      sscanf(tmp, "%x", &val);        // interpret as hex data
+      sscanf(tmp, "%x", &val);          // interpret as hex data
       chkCalc += (uint8_t) (val >> 8);
       chkCalc += (uint8_t)  val;
       addrOff = val << 16;
+      //fprintf(stderr, "addrOff = 0x%04x\n", val);
     } // type==4
+
+    // start address  -> ignore
+    else if (type==5)
+      continue; 
     
     else {
       fprintf(stderr, "\n\nerror in 'convert_hex()': line %d has unsupported type %d, exit!\n\n", linecount, type);
       Exit(1);
     }
-    
+   
     // checksum
     sprintf(tmp,"0x00");
     strncpy(tmp+2, line+idx, 2);
     sscanf(tmp, "%x", &val);
     chkRead = val;
-    
+    //fprintf(stderr, "chk = '%s' 0x%04x\n", tmp, chkRead);
+
     // assert checksum (0xFF xor (sum over all except record type)
     chkCalc = 255 - chkCalc + 1;                 // calculate 2-complement
     if (chkCalc != chkRead) {
@@ -411,22 +439,17 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
       Exit(1);
     }
     
-    // store min/max address
-    if (addr < addrMin)
-      addrMin = addr;
-    if (addr+len-1 > addrMax)
-      addrMax = addr+len-1;
-    
   } // while !EOF
     
+
   // store base address and image size
   *addrStart = addrMin;
   if ((addrMin != 0xFFFFFFFF) || (addrMax != 0x00000000))
     *numBytes  = addrMax-addrMin+1;
   else
     *numBytes  = 0;
-       
   
+
   // 2nd run: store data to image
   addrOff = 0x00000000;
   if (*numBytes != 0) {
@@ -439,6 +462,7 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
       sscanf(tmp, "%x", &val);
       len = val;
       
+
       // 16b address
       addr = 0;
       sprintf(tmp,"0x0000");
@@ -446,11 +470,13 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
       sscanf(tmp, "%x", &val);
       addr = val;         // add offset for >64kB addresses
 
+
       // record type
       sprintf(tmp,"0x00");
       strncpy(tmp+2, line+7, 2);
       sscanf(tmp, "%x", &val);
       type = val;
+
       
       // record contains data
       if (type==0) {
@@ -459,14 +485,16 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
           sprintf(tmp,"0x00");
           strncpy(tmp+2, line+idx, 2);                        // get next 2 chars as string
           sscanf(tmp, "%x", &val);                            // interpret as hex data
-          image[addr+addrOff+i] = (uint16_t) val | 0xFF00;    // store data byte in buffer and set high byte
+          image[addr+addrOff+i-addrMin] = (uint16_t) val | 0xFF00;    // store data byte in buffer and set high byte
           idx+=2;                                             // advance 2 chars in line
         }
       } // type==0
 
+
       // EOF indicator
       else if (type==1)
         continue; 
+
     
       // extended address (=upper 16b of address for following data records)
       else if (type==4) {
@@ -475,7 +503,13 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
         sscanf(tmp, "%x", &val);        // interpret as hex data
         addrOff = val << 16;
       } // type==4
+
     
+      // start address  -> ignore
+      else if (type==5)
+        continue; 
+    
+
       else {
         fprintf(stderr, "\n\nerror in 'convert_hex()': line %d has unsupported type %d, exit!\n\n", linecount, type);
         Exit(1);
@@ -484,6 +518,7 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
     } // while !EOF
     
   } // if numBytes!=0
+
   
   /*
   printf("\n");
@@ -516,7 +551,7 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
    \param[in]  buf        memory buffer to read from (0-terminated)
    \param[out] addrStart  start address of image (=lowest address in hexfile)
    \param[out] numBytes   number of bytes in image
-   \param[out] image      RAM image of hexfile (high byte != 0 indicates value is set)
+   \param[out] image      RAM image of hexfile. High byte != 0 indicates value is set. Index 0 corresponds to address addrStart
    \param[in]  verbose    level of verbosity and if application exits on fail 
    
    convert memory buffer containing plain table (hex address / value) to memory buffer
@@ -594,7 +629,7 @@ void convert_txt(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
    \brief export RAM image to file in Motorola s19 format
    
    \param[in]  outfile    filename to output to
-   \param[in]  image      RAM image of all imported hexfiles
+   \param[in]  image      RAM image of all imported hexfiles. High byte != 0 indicates value is set. Index 0 corresponds to address addrStart
    \param[in]  addrStart  first address to export
    \param[in]  addrStop   last address to export
    
@@ -613,7 +648,7 @@ void export_s19(char *outfile, uint16_t *image, uint32_t addrStart, uint32_t add
   /*
   printf("\n");
   for (i=addrStart; i<=addrStop; i++)
-    printf("  0x%04X   0x%02X\n", i, (int)(image[i]) & 0xFF);
+    printf("  0x%04X   0x%02X\n", i, (int)(image[i-addrStart]) & 0xFF);
   */
 
   // open output file
@@ -629,7 +664,7 @@ void export_s19(char *outfile, uint16_t *image, uint32_t addrStart, uint32_t add
     // get last entry in 32B block with data (high byte != 0 indicates data)
     idxFirst = idxLast = -1;
     for (i=0; i<32; i++) {
-      if ((image[addr+i] & 0xFF00)!= 0x00) {
+      if ((image[addr+i-addrStart] & 0xFF00)!= 0x00) {
         if (idxFirst == -1)
           idxFirst = i;
         idxLast = i;
@@ -649,7 +684,7 @@ void export_s19(char *outfile, uint16_t *image, uint32_t addrStart, uint32_t add
       fprintf(fp, "S1%02X%02X", numData+3, addr+idxFirst); // 2B addr + data + 1B chk
       chk = (uint8_t) (numData+3) + (uint8_t) (addr+idxFirst) + (uint8_t) ((addr+idxFirst) >> 8);
       for (i=idxFirst; i<=idxLast; i++) {
-        data = (uint8_t) (image[addr+i] & 0xFF);    // skip high byte
+        data = (uint8_t) (image[addr+i-addrStart] & 0xFF);    // skip high byte
         chk += data;
         fprintf(fp, "%02X", data);
       }
@@ -676,7 +711,7 @@ void export_s19(char *outfile, uint16_t *image, uint32_t addrStart, uint32_t add
    \brief export RAM image to file in Intel hex format
    
    \param[in]  outfile    filename to output to
-   \param[in]  image      RAM image of all imported hexfiles
+   \param[in]  image      RAM image of all imported hexfiles. High byte != 0 indicates value is set. Index 0 corresponds to address addrStart
    \param[in]  addrStart  first address to export
    \param[in]  addrStop   last address to export
    
@@ -720,8 +755,9 @@ void export_txt(char *outfile, uint16_t *image, uint32_t addrStart, uint32_t add
   // store each value in own line
   for (addr=addrStart; addr<=addrStop; addr++) {
 
-    if ((image[addr] & 0xFF00)!= 0x00)
-      fprintf(fp, "0x%04x	%d\n", addr, (int) (image[addr] & 0xFF));
+    if ((image[addr-addrStart] & 0xFF00)!= 0x00)
+      fprintf(fp, "0x%04x	%d\n", addr, (int) (image[addr-addrStart] & 0xFF));
+      //fprintf(fp, "0x%04x	0x%02x\n", addr, (uint8_t) (image[addr-addrStart] & 0xFF));
 
   } // loop over addresses
   
@@ -734,13 +770,14 @@ void export_txt(char *outfile, uint16_t *image, uint32_t addrStart, uint32_t add
 
 
 /**
-   \fn void save_memory_image(char *(char *outfile, uint8_t *image, uint32_t addrStart, uint32_t addrStop);, uint8_t *image, uint32_t addrStart, uint32_t addrStop);
+   \fn void save_memory_image(char *outfile, uint16_t *image, uint32_t addrStart, uint32_t addrStop)
 
    \brief save memory image (for debug)
 
-   \param[in] outfile   of file to dump image to
-   \param[in]  filename name of file to dump image to
-   \param[in]  filename name of file to dump image to
+   \param[in]  outfile    filename to output to
+   \param[in]  image      RAM image of all imported hexfiles. High byte != 0 indicates value is set. Index 0 corresponds to address addrStart
+   \param[in]  addrStart  first address to export
+   \param[in]  addrStop   last address to export
 
    save memory image to file for debugging
 */
@@ -759,7 +796,7 @@ void save_memory_image(char *outfile, uint16_t *image, uint32_t addrStart, uint3
   for (i=addrStart; i<=addrStop; i+=32) {
     fprintf(fp, "0x%08x: ", (int) i);
     for (j=0; j<32; j++)
-      fprintf(fp, "0x%02x ", (uint8_t) (image[i+j] & 0xFF));
+      fprintf(fp, "0x%02x ", (uint8_t) (image[i+j-addrStart] & 0xFF));
     fprintf(fp, "\n");
   } // flash
   fprintf(fp, "\n\n");
