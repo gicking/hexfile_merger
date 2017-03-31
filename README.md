@@ -6,12 +6,12 @@ tool for importing multiple hexfiles of different formats and exporting them to 
   - Intel Hex (see https://en.wikipedia.org/wiki/Intel_HEX)
   - ASCII table with each line containing "hexAddr  decValue"
 
-usage: hexfile_merger [-h] -i infile_1 -i infile_2 ... [-o outfile]
-   -h    print this help
-   -i    name of s19/hex/txt file to import (default: none)
-   -o    name of output s19/hex/txt file (default: outfile.s19)
-   -v    verbose output (default: no)
-   -q    don't prompt for <return> prior to exit (default: promt)
+    usage: hexfile_merger [-h] -i infile_1 -i infile_2 ... [-o outfile]  
+        -h    print this help  
+        -i    name of s19/hex/txt file to import (default: none)  
+        -o    name of output s19/hex/txt file (default: outfile.s19)  
+        -v    verbose output (default: no)  
+        -q    don't prompt for <return> prior to exit (default: promt)  
 
 Notes:
   - this tool is written in ANSI-C, so it can be compiled on any platform supporting e.g. GCC
