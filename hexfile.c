@@ -101,6 +101,12 @@ void load_hexfile(char *filename, char *buf, uint32_t bufsize) {
   len = ftell(fp);
   fseek(fp, 0, SEEK_SET);
 
+  // check buffer size for file
+  if (len > BUFSIZE) {
+    fprintf(stderr, "\n\nerror in 'load_hexfile()': filesize %dMB exceeds buffer size %dMB, exit!\n\n", (int) (len/1024L/1024L), (int) (BUFSIZE/1024L/1024L));
+    Exit(1);
+  }
+
   // read file to buffer
   fread(buf, len, 1, fp);
   
@@ -231,6 +237,12 @@ void convert_s19(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
     *numBytes  = addrMax-addrMin+1;
   else
     *numBytes  = 0;
+
+  // check buffer size for image
+  if (*numBytes > BUFSIZE) {
+    fprintf(stderr, "\n\nerror in 'convert_s19()': image %dMB exceeds buffer size %dMB, exit!\n\n", (int) ((*numBytes)/1024L/1024L), (int) (BUFSIZE/1024L/1024L));
+    Exit(1);
+  }
        
   
   // 2nd run: store data to image
@@ -448,6 +460,12 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
     *numBytes  = addrMax-addrMin+1;
   else
     *numBytes  = 0;
+
+  // check buffer size for image
+  if (*numBytes > BUFSIZE) {
+    fprintf(stderr, "\n\nerror in 'convert_hex()': image %dMB exceeds buffer size %dMB, exit!\n\n", (int) ((*numBytes)/1024L/1024L), (int) (BUFSIZE/1024L/1024L));
+    Exit(1);
+  }
   
 
   // 2nd run: store data to image
@@ -568,7 +586,8 @@ void convert_txt(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
     fflush(stdout);
   }
   
-  // read data and store in RAM image
+
+  // 1st run: check syntax and extract min/max addresses
   linecount = 0;
   addrMin = 0xFFFFFFFF;
   addrMax = 0x00000000;
@@ -581,9 +600,6 @@ void convert_txt(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
     // read address & data
     sscanf(line, "%x %d", &addr, &val);
 
-    // store data byte in buffer and set high byte
-    image[addr] = (uint16_t) val | 0xFF00;    
-
     // store min/max address
     if (addr < addrMin)
       addrMin = addr;
@@ -591,14 +607,37 @@ void convert_txt(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
       addrMax = addr;
     
   } // while !EOF
-      
+    
+
   // store base address and image size
   *addrStart = addrMin;
   if ((addrMin != 0xFFFFFFFF) || (addrMax != 0x00000000))
     *numBytes  = addrMax-addrMin+1;
   else
     *numBytes  = 0;
-       
+
+  // check buffer size for image
+  if (*numBytes > BUFSIZE) {
+    fprintf(stderr, "\n\nerror in 'convert_txt()': image %dMB exceeds buffer size %dMB, exit!\n\n", (int) ((*numBytes)/1024L/1024L), (int) (BUFSIZE/1024L/1024L));
+    Exit(1);
+  }
+  
+
+  // 2nd run: store data to image
+  if (*numBytes != 0) {
+    p = buf;
+    while (get_line(&p, line)) {
+    
+      // read address & data
+      sscanf(line, "%x %d", &addr, &val);
+
+      // store data byte in buffer and set high byte
+      image[addr-addrMin] = (uint16_t) val | 0xFF00;    
+    
+    } // while !EOF
+    
+  } // if numBytes!=0
+             
   
   /*
   printf("\n");
@@ -681,21 +720,56 @@ void export_s19(char *outfile, uint16_t *image, uint32_t addrStart, uint32_t add
     if (numData > 0) {
 
       // save line (see http://en.wikipedia.org/wiki/SREC_(file_format) )
-      fprintf(fp, "S1%02X%02X", numData+3, addr+idxFirst); // 2B addr + data + 1B chk
-      chk = (uint8_t) (numData+3) + (uint8_t) (addr+idxFirst) + (uint8_t) ((addr+idxFirst) >> 8);
-      for (i=idxFirst; i<=idxLast; i++) {
-        data = (uint8_t) (image[addr+i-addrStart] & 0xFF);    // skip high byte
-        chk += data;
-        fprintf(fp, "%02X", data);
+      
+      // 32-bit address range:
+      if (addr > 0xFFFFFF) {
+        fprintf(fp, "S3%02X%04X", numData+5, addr+idxFirst);    // 4B addr + data + 1B chk
+        chk = (uint8_t) (numData+5) + (uint8_t) (addr+idxFirst) + (uint8_t) ((addr+idxFirst) >> 8) + (uint8_t) ((addr+idxFirst) >> 16) + (uint8_t) ((addr+idxFirst) >> 24);
+        for (i=idxFirst; i<=idxLast; i++) {
+          data = (uint8_t) (image[addr+i-addrStart] & 0xFF);    // skip high byte
+          chk += data;
+          fprintf(fp, "%02X", data);
+        }
+        chk = ((chk & 0xFF) ^ 0xFF);
+        fprintf(fp, "%02X\n", chk);
       }
-      chk = ((chk & 0xFF) ^ 0xFF);
-      fprintf(fp, "%02X\n", chk);
+
+      // 24-bit address range:
+      else if (addr > 0xFFFF) {
+        fprintf(fp, "S2%02X%03X", numData+4, addr+idxFirst);    // 3B addr + data + 1B chk
+        chk = (uint8_t) (numData+4) + (uint8_t) (addr+idxFirst) + (uint8_t) ((addr+idxFirst) >> 8) + (uint8_t) ((addr+idxFirst) >> 16);
+        for (i=idxFirst; i<=idxLast; i++) {
+          data = (uint8_t) (image[addr+i-addrStart] & 0xFF);    // skip high byte
+          chk += data;
+          fprintf(fp, "%02X", data);
+        }
+        chk = ((chk & 0xFF) ^ 0xFF);
+        fprintf(fp, "%02X\n", chk);
+      }
+
+      // 16-bit address range:
+      else if (addr > 0xFFFF) {
+        fprintf(fp, "S1%02X%02X", numData+3, addr+idxFirst);    // 2B addr + data + 1B chk
+        chk = (uint8_t) (numData+3) + (uint8_t) (addr+idxFirst) + (uint8_t) ((addr+idxFirst) >> 8);
+        for (i=idxFirst; i<=idxLast; i++) {
+          data = (uint8_t) (image[addr+i-addrStart] & 0xFF);    // skip high byte
+          chk += data;
+          fprintf(fp, "%02X", data);
+        }
+        chk = ((chk & 0xFF) ^ 0xFF);
+        fprintf(fp, "%02X\n", chk);
+      }
     }
 
   } // loop over addresses
 
-  // attach generic EOF line
-  fprintf(fp, "S903FFFFFE\n");
+  // attach generic EOF line with 0 address (only programming)
+  if (addrStop > 0xFFFFFF)
+    fprintf(fp, "S70500000000FA\n");  // 32-bit addresses
+  else if (addrStop > 0xFFFF)
+    fprintf(fp, "S804000000FB\n");    // 24-bit addresses
+  else
+    fprintf(fp, "S9030000FC\n");      // 16-bit addresses
   
   // close output file
   fflush(fp);
@@ -755,9 +829,16 @@ void export_txt(char *outfile, uint16_t *image, uint32_t addrStart, uint32_t add
   // store each value in own line
   for (addr=addrStart; addr<=addrStop; addr++) {
 
-    if ((image[addr-addrStart] & 0xFF00)!= 0x00)
-      fprintf(fp, "0x%04x	%d\n", addr, (int) (image[addr-addrStart] & 0xFF));
-      //fprintf(fp, "0x%04x	0x%02x\n", addr, (uint8_t) (image[addr-addrStart] & 0xFF));
+    if ((image[addr-addrStart] & 0xFF00)!= 0x00) {
+
+      if (addr > 0xFFFFFF)
+        fprintf(fp, "0x%08x	%d\n", addr, (int) (image[addr-addrStart] & 0xFF));
+      else if (addr > 0xFFFF)
+        fprintf(fp, "0x%06x	%d\n", addr, (int) (image[addr-addrStart] & 0xFF));
+      else 
+        fprintf(fp, "0x%04x	%d\n", addr, (int) (image[addr-addrStart] & 0xFF));
+
+    }
 
   } // loop over addresses
   

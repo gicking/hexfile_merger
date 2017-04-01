@@ -17,6 +17,9 @@
 #ifndef _HEXFILE_H_
 #define _HEXFILE_H_
 
+/// buffer size [B] for hexfiles and memory map
+#define  BUFSIZE  10*1024*1024
+
 // read next line from RAM buffer
 char  *get_line(char **buf, char *line);
 

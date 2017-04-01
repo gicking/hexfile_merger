@@ -38,9 +38,6 @@
 /// max length of filenames
 #define  STRLEN   1000
 
-/// buffer size [B] for hexfiles and memory map
-#define  BUFSIZE  10*1024*1024
-
 
 
 /**
