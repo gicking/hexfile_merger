@@ -832,11 +832,11 @@ void export_txt(char *outfile, uint16_t *image, uint32_t addrStart, uint32_t add
     if ((image[addr-addrStart] & 0xFF00)!= 0x00) {
 
       if (addr > 0xFFFFFF)
-        fprintf(fp, "0x%08x	%d\n", addr, (int) (image[addr-addrStart] & 0xFF));
+        fprintf(fp, "0x%08x	0x%02x\n", addr, (int) (image[addr-addrStart] & 0xFF));
       else if (addr > 0xFFFF)
-        fprintf(fp, "0x%06x	%d\n", addr, (int) (image[addr-addrStart] & 0xFF));
+        fprintf(fp, "0x%06x	0x%02x\n", addr, (int) (image[addr-addrStart] & 0xFF));
       else 
-        fprintf(fp, "0x%04x	%d\n", addr, (int) (image[addr-addrStart] & 0xFF));
+        fprintf(fp, "0x%04x	0x%02x\n", addr, (int) (image[addr-addrStart] & 0xFF));
 
     }
 
