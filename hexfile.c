@@ -577,6 +577,7 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
 void convert_txt(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *image, uint8_t verbose) {
   
   char      line[1000], *p;
+  char      *p2, s[1000];
   int       linecount, val;
   uint32_t  addr, addrMin, addrMax;
   
@@ -597,8 +598,19 @@ void convert_txt(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
     // increase line counter
     linecount++;
     
+    // peek for comment and whether data is hex or dec
+    p2 = line;
+    if (p2[0] == '#')
+      continue;
+    sscanf(p2, "%x %s", &addr, s);
+    
     // read address & data
-    sscanf(line, "%x %d", &addr, &val);
+    if ((s[0] == '0') && ((s[1] == 'x') || (s[1] == 'X'))) {
+      sscanf(line, "%x %x", &addr, &val);
+    }
+    else {
+      sscanf(line, "%x %d", &addr, &val);
+    }
 
     // store min/max address
     if (addr < addrMin)
@@ -628,8 +640,19 @@ void convert_txt(char *buf, uint32_t *addrStart, uint32_t *numBytes, uint16_t *i
     p = buf;
     while (get_line(&p, line)) {
     
+      // peek whether data is hex or dec
+      p2 = line;
+      if (p2[0] == '#')
+        continue;
+      sscanf(p2, "%x %s", &addr, s);
+    
       // read address & data
-      sscanf(line, "%x %d", &addr, &val);
+      if ((s[0] == '0') && ((s[1] == 'x') || (s[1] == 'X'))) {
+        sscanf(line, "%x %x", &addr, &val);
+      }
+      else {
+        sscanf(line, "%x %d", &addr, &val);
+      }
 
       // store data byte in buffer and set high byte
       image[addr-addrMin] = (uint16_t) val | 0xFF00;    
@@ -709,13 +732,15 @@ void export_s19(char *outfile, uint16_t *image, uint32_t addrStart, uint32_t add
         idxLast = i;
       }
     }
+    //printf("\n indexFirst: %d   indexLast: %d\n", idxFirst, idxLast);
 
     // get number of bytes in line
     if (idxFirst != -1)
       numData = (idxLast-idxFirst) + 1;
     else
       numData = 0;
-      
+    //printf("\n numData: %d\n", numData);
+ 
     // if line contains data save it to file
     if (numData > 0) {
 
@@ -723,6 +748,7 @@ void export_s19(char *outfile, uint16_t *image, uint32_t addrStart, uint32_t add
       
       // 32-bit address range:
       if (addr > 0xFFFFFF) {
+        //printf("\n 32 bit range\n");
         fprintf(fp, "S3%02X%04X", numData+5, addr+idxFirst);    // 4B addr + data + 1B chk
         chk = (uint8_t) (numData+5) + (uint8_t) (addr+idxFirst) + (uint8_t) ((addr+idxFirst) >> 8) + (uint8_t) ((addr+idxFirst) >> 16) + (uint8_t) ((addr+idxFirst) >> 24);
         for (i=idxFirst; i<=idxLast; i++) {
@@ -736,6 +762,7 @@ void export_s19(char *outfile, uint16_t *image, uint32_t addrStart, uint32_t add
 
       // 24-bit address range:
       else if (addr > 0xFFFF) {
+        //printf("\n 24 bit range\n");
         fprintf(fp, "S2%02X%03X", numData+4, addr+idxFirst);    // 3B addr + data + 1B chk
         chk = (uint8_t) (numData+4) + (uint8_t) (addr+idxFirst) + (uint8_t) ((addr+idxFirst) >> 8) + (uint8_t) ((addr+idxFirst) >> 16);
         for (i=idxFirst; i<=idxLast; i++) {
@@ -748,7 +775,8 @@ void export_s19(char *outfile, uint16_t *image, uint32_t addrStart, uint32_t add
       }
 
       // 16-bit address range:
-      else if (addr > 0xFFFF) {
+      else {
+        //printf("\n 16 bit range\n");
         fprintf(fp, "S1%02X%02X", numData+3, addr+idxFirst);    // 2B addr + data + 1B chk
         chk = (uint8_t) (numData+3) + (uint8_t) (addr+idxFirst) + (uint8_t) ((addr+idxFirst) >> 8);
         for (i=idxFirst; i<=idxLast; i++) {
@@ -876,11 +904,16 @@ void save_memory_image(char *outfile, uint16_t *image, uint32_t addrStart, uint3
   // loop over image
   for (i=addrStart; i<=addrStop; i+=32) {
     fprintf(fp, "0x%08x: ", (int) i);
-    for (j=0; j<32; j++)
+    //printf("0x%08x: ", (int) i);
+    for (j=0; j<32; j++) {
       fprintf(fp, "0x%02x ", (uint8_t) (image[i+j-addrStart] & 0xFF));
+      //printf("0x%02x ", (uint8_t) (image[i+j-addrStart] & 0xFF));
+    }
     fprintf(fp, "\n");
+    //printf("\n");
   } // flash
   fprintf(fp, "\n\n");
+  //printf("\n\n");
 
   // close file
   fflush(fp);
