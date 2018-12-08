@@ -9,13 +9,6 @@
    
    this is the main file containing browsing input parameters, calling the import and export routines
 
-   usage: hexfile_merger [-h] -i infile_1 -i infile_2 ... [-o outfile]
-      -h    print this help
-      -i    name of s19/hex/txt file to import (default: none)
-      -o    name of output s19/hex/txt file (default: outfile.s19)
-      -v    verbose output (default: no)
-      -q    don't prompt for <return> prior to exit (default: promt)
-
    \note program not yet fully tested!
 */
 
@@ -33,7 +26,7 @@
 
 
 /// version number (float)
-#define VERSION 1.1
+#define VERSION 1.2
 
 /// max length of filenames
 #define  STRLEN   1000
@@ -99,10 +92,10 @@ int main(int argc, char ** argv) {
   // without commandline arguments print help
   if (argc == 1) {
     printf("\n");
-    printf("usage: %s [-h] -i infile_1 -i infile_2 ... [-o outfile] [-q]\n\n", appname);
+    printf("usage: %s [-h] -i infile_1 -i infile_2 ... [-o outfile] [-v] [-q]\n\n", appname);
     printf("  -h    print this help\n");
     printf("  -i    name of s19/hex/txt file to import (default: none)\n");
-    printf("  -o    name of output s19/hex/txt file (default: outfile.s19)\n");
+    printf("  -o    name of output s19/txt file (default: outfile.s19)\n");
     printf("  -v    verbose output (default: no)\n");
     printf("  -q    don't prompt for <return> prior to exit (default: promt)\n");
     Exit(1);
@@ -176,10 +169,11 @@ int main(int argc, char ** argv) {
     // else print help
     else {
       printf("\n");
-      printf("usage: %s [-h] -i infile_1 -i infile_2 ... [-o outfile] [-q]\n\n", appname);
+      printf("usage: %s [-h] -i infile_1 -i infile_2 ... [-o outfile] [-v] [-q]\n\n", appname);
       printf("  -h    print this help\n");
       printf("  -i    name of s19/hex/txt file to import (default: none)\n");
-      printf("  -o    name of output s19/hex/txt file (default: outfile.s19)\n");
+      printf("  -o    name of output s19/txt file (default: outfile.s19)\n");
+      printf("  -v    verbose output (default: no)\n");
       printf("  -q    don't prompt for <return> prior to exit (default: promt)\n");
       Exit(1);
     }
@@ -195,8 +189,6 @@ int main(int argc, char ** argv) {
   printf("export to '%s' ... ", outfile);
   if (strstr(outfile, ".s19") != NULL)                                              // Motorola S-record format
     export_s19(outfile, image, addrStart, addrStop);
-  else if ((strstr(outfile, ".hex") != NULL) || (strstr(outfile, ".ihx") != NULL))  // Intel HEX-format
-    export_hex(outfile, image, addrStart, addrStop);
   else if (strstr(outfile, ".txt") != NULL)                                         // text table (hex addr / data)
     export_txt(outfile, image, addrStart, addrStop);
   else {
