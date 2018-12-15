@@ -2,9 +2,9 @@ hexfile_merger
 -------------------
 
 Import multiple files of various formats and merge them to a single output file.
-For more information see https://github.com/gicking/hexfile_merger
 
 `usage: hexfile_merger [-h] [-i infile] [-i binfile addr] ... [-o outfile] [-p] [-v level]`
+
     -h / --help     print this help
     -i / --input    name of input file (for '*.bin' plus starting address, default: none)
     -o / --output   name of output file (default: outfile.txt)
