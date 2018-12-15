@@ -13,7 +13,7 @@ Import multiple files of various formats and merge them to a single output file.
 
 Supported import formats:
   - Motorola S19 (*.s19), for a description see https://en.wikipedia.org/wiki/SREC_(file_format)
-  - Intel Hex (*.hex,*.ihx), for a description see https://en.wikipedia.org/wiki/Intel_HEX
+  - Intel Hex (*.hex, *.ihx), for a description see https://en.wikipedia.org/wiki/Intel_HEX
   - ASCII table (*.txt) consisting of lines with 'hexAddr  value'. Lines starting with '#' are ignored
   - Binary (*.bin) with an additional starting address
 
