@@ -4,7 +4,7 @@
    \author G. Icking-Konert
    \date 2018-12-14
    \version 0.2
-   
+  
    \brief implementation of main routine
    
    this is the main file containing browsing input parameters, calling the import and export routines
