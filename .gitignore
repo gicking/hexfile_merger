@@ -1,6 +1,6 @@
 # hexfiles
-*.s19
-*.hex
+#*.s19
+#*.hex
 #*.txt
 
 # object files
@@ -9,4 +9,4 @@
 # executable
 hexfile_merger
 hexfile_merger.exe
-/dump.txt
+dump.*
