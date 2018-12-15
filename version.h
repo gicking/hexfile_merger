@@ -35,7 +35,7 @@ Revision History
   - added option to print memory map
   - fixed S19 export bugs for >16bit addresses and small images
   - fixed IHX import bug for record type 5
-  - merged files as much as possible with https://github.com/gicking/stm8gal
+  - harmonized files with https://github.com/gicking/stm8gal
 
 ----------------
 

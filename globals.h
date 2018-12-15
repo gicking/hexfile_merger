@@ -2,7 +2,7 @@
   \file globals.h
    
   \author G. Icking-Konert
-  \date 2008-11-02
+  \date 2014-03-15
   \version 0.1
 
   \brief declaration of global variables 
@@ -17,12 +17,10 @@
 #define _GLOBALS_H_
 
 
-////////////
-// includes
-////////////
-
-// generic ANSI
+// include files
 #include <stdint.h>
+#include <stdbool.h>
+#include <inttypes.h>
 
 
 /** 
@@ -41,13 +39,11 @@
   #define global extern
 #endif
 
-
-/// output verbosity level
-global uint8_t        g_verbose;
-
 /// wait for \<return\> prior to closing console window
 global uint8_t        g_pauseOnExit;
 
+/// optimize for background operation, e.g. skip prompts and colors
+global uint8_t        g_backgroundOperation;
 
 // undefine global again
 #undef global

@@ -2,8 +2,8 @@
    \file main.c
 
    \author G. Icking-Konert
-   \date 2014-03-14
-   \version 0.1
+   \date 2018-12-14
+   \version 0.2
    
    \brief implementation of main routine
    
@@ -20,15 +20,13 @@
 #include <stdint.h>
 #include "hexfile.h"
 #include "misc.h"
+#include "version.h"
 #define _MAIN_
   #include "globals.h"
 #undef _MAIN_
 
 
-/// version number (float)
-#define VERSION 1.2
-
-/// max length of filenames
+// max length of filenames
 #define  STRLEN   1000
 
 
@@ -47,160 +45,318 @@
 */
 int main(int argc, char ** argv) {
  
-  char      *appname;                       // name of application without path
-  char      infile[STRLEN]="";              // names of input hexfiles
-  char      outfile[STRLEN]="outfile.s19";  // name of output hexfile
-  char      *buf;                           // buffer for hexfiles
-  uint16_t  *image;                         // memory image buffer (high byte != 0 indicates value is set)
-  uint32_t  imageStart;                     // starting address of hexfile
-  uint32_t  numBytes;                       // number of bytes in hexfile
-  uint32_t  addrStart, addrStop;            // first and last adress in memory buffer
-  uint32_t  i;                              // generic variable
+  char      appname[STRLEN];                // name of application without path
+  char      version[100];                   // version as string
+  int       verbose;                        // verbosity level (0..2)
+  uint16_t  *imageBuf;                      // global RAM image buffer (high byte != 0 indicates value is set)
+  uint32_t  addrStart;                      // start address for image buffer (corresponds to image[0])
+  uint32_t  addrStop;                       // highest address in image buffer (corresponds to image[addrStop-addrStart])
+  bool      printHelp;                      // flag for printing help page
+  char      tmp[STRLEN];                    // misch buffer
   
-  // initialize globals
-  g_verbose     = 0;                        // output verbosity level
-  g_pauseOnExit = 1;                        // prompt for <return> prior to exit
-  
+  // initialize defaults
+  g_pauseOnExit           = 0;              // no wait for <return> before terminating (dummy)
+  g_backgroundOperation   = 0;              // assume foreground application
+  verbose                 = 1;              // verbosity level (0..2)
 
-  // debug: print all commandline arguments
+  // debug: print arguments
   /*
+  printf("\n\narguments:\n");
+  for (i=0; i<argc; i++) { 
+    //printf("  %d: '%s'\n", (int) i, argv[i]);
+    printf("%s ", argv[i]);
+  }
   printf("\n\n");
-  for (i=1; i<argc; i++)
-    printf("'%s'\n", argv[i]);
-  printf("\n");
-  Exit(1);
+  exit(1);
   */
   
+
+  // get app name & version, and change console title
+  get_app_name(argv[0], VERSION, appname, version);
+  sprintf(tmp, "%s (%s)", appname, version);
+  setConsoleTitle(tmp);  
+
   
-  // allocate buffers (>1MByte requires dynamic allocation)
-  buf   = malloc(BUFSIZE * sizeof(uint8_t));
-  image = malloc(BUFSIZE * sizeof(uint16_t));
-  if ((!buf) || (!image)) {
-    fprintf(stderr, "\n\nerror: cannot allocate buffers, try reducing BUFSIZE, exit!\n\n");
-    Exit(1);
-  }
-
-  // get application name
-  if (strrchr(argv[0],'\\'))
-    appname = strrchr(argv[0],'\\')+1;         // windows
-  else if (strrchr(argv[0],'/'))
-    appname = strrchr(argv[0],'/')+1;          // Posix
-  else
-    appname = argv[0];
-
-
-  // without commandline arguments print help
-  if (argc == 1) {
-    printf("\n");
-    printf("usage: %s [-h] -i infile_1 -i infile_2 ... [-o outfile] [-v] [-q]\n\n", appname);
-    printf("  -h    print this help\n");
-    printf("  -i    name of s19/hex/txt file to import (default: none)\n");
-    printf("  -o    name of output s19/txt file (default: outfile.s19)\n");
-    printf("  -v    verbose output (default: no)\n");
-    printf("  -q    don't prompt for <return> prior to exit (default: promt)\n");
-    Exit(1);
-  }
-
-
-  // init memory image (high byte != 0 indicates value is set)
-  for (i=0; i<BUFSIZE; i++)
-    image[i] = 0x0000;
-
-
-  // for determining start and stop address
-  addrStart = 0xFFFFFFFF;
-  addrStop  = 0x00000000;
-  
-
   ////////
-  // parse commandline arguments and import hexfiles
+  // 1st pass of commandline arguments: set global parameters, no import/export yet
   ////////
-  printf("\n%s (vers %1.1f)\n\n", appname, VERSION);
-  printf("start import\n");
-  for (i=1; i<argc; i++) {
+  printHelp = false;
+  for (int i=1; i<argc; i++) {
     
-    // import next hexfile into RAM immediately
-    if (!strcmp(argv[i], "-i")) {
-      
-      // get hexfile name
-      strncpy(infile, argv[++i], STRLEN-1);
-      
-      // import hexfile into string buffer (no interpretation, yet)
-      load_hexfile(infile, buf, BUFSIZE);
-    
-      // convert to memory image, depending on file type 
-      if (strstr(infile, ".s19") != NULL)                                             // Motorola S-record format
-        convert_s19(buf, &imageStart, &numBytes, image, g_verbose);
-      else if ((strstr(infile, ".hex") != NULL) || (strstr(infile, ".ihx") != NULL))  // Intel HEX-format
-        convert_hex(buf, &imageStart, &numBytes, image, g_verbose);
-      else if (strstr(infile, ".txt") != NULL)                                        // text table (hex addr / data)
-        convert_txt(buf, &imageStart, &numBytes, image, g_verbose);
-      else {
-        fprintf(stderr, "\n\nerror: unsupported input file format for '%s', exit!\n\n", infile);
-        Exit(1);
+    // skip file import. Just check parameter number
+    if ((!strcmp(argv[i], "--input")) || (!strcmp(argv[i], "-i"))) {
+
+      // get file name
+      if (i<argc-1) {
+        if (strstr(argv[++i], ".bin") != NULL) {  // for binary file skip additionaly address
+          if (i<argc-1)
+            i+=1;
+          else {
+            printHelp = true;
+            break;
+          }
+        }
       }
-
-      // store new start & stop addresses
-      if (imageStart < addrStart)
-        addrStart = imageStart;
-      if (imageStart+numBytes > addrStop)
-        addrStop = imageStart+numBytes;
-
-    } // -i -> import file
-
-
-    // store name of output hexfile
-    else if (!strcmp(argv[i], "-o")) {
-      strncpy(outfile, argv[++i], STRLEN-1);
+      else {
+        printHelp = true;
+        break;
+      }
+    } // input
+      
+    // skip file export. Just check parameter number
+    else if ((!strcmp(argv[i], "--output")) || (!strcmp(argv[i], "-o"))) {
+      if (i<argc-1)
+        i+=1;
+      else {
+        printHelp = true;
+        break;
+      }
+    }
+      
+    // skip printing of RAM image
+    else if ((!strcmp(argv[i], "--print")) || (!strcmp(argv[i], "-p"))) {
+      // dummy
     }
 
-
-    // verbose output
-    else if (!strcmp(argv[i], "-v")) {
-      g_verbose = 1;
+    // set verbosity level (0..2)
+    else if ((!strcmp(argv[i], "--verbose")) || (!strcmp(argv[i], "-v"))) {
+      if (i<argc-1)
+        sscanf(argv[++i],"%d",&verbose);
+      else {
+        printHelp = true;
+        break;
+      }
+      if (verbose < 0) verbose = 0;
+      if (verbose > 2) verbose = 2;
     }
-
-    // don't promt for <return> prior to exit
-    else if (!strcmp(argv[i], "-q")) {
-      g_pauseOnExit = 0;
-    }
-
 
     // else print help
     else {
-      printf("\n");
-      printf("usage: %s [-h] -i infile_1 -i infile_2 ... [-o outfile] [-v] [-q]\n\n", appname);
-      printf("  -h    print this help\n");
-      printf("  -i    name of s19/hex/txt file to import (default: none)\n");
-      printf("  -o    name of output s19/txt file (default: outfile.s19)\n");
-      printf("  -v    verbose output (default: no)\n");
-      printf("  -q    don't prompt for <return> prior to exit (default: promt)\n");
-      Exit(1);
+      printHelp = true;
+      break;
     }
 
-  } // process commandline arguments
-  printf("done\n\n");
+  } // 1st pass over commandline arguments
 
-
-
-  ////////
-  // export merged hexfile
-  ////////
-  printf("export to '%s' ... ", outfile);
-  if (strstr(outfile, ".s19") != NULL)                                              // Motorola S-record format
-    export_s19(outfile, image, addrStart, addrStop);
-  else if (strstr(outfile, ".txt") != NULL)                                         // text table (hex addr / data)
-    export_txt(outfile, image, addrStart, addrStop);
-  else {
-    fprintf(stderr, "\n\nerror: unsupported output file format for '%s', exit!\n\n", outfile);
-    Exit(1);
+  
+  // on request (-h) or in case of parameter error print help page
+  if ((printHelp==true) || (argc == 1)) {
+    printf("\n");
+    printf("\n%s (%s)\n\n", appname, version);
+    printf("Import multiple files of various formats and merge them to a single output file.\n");
+    printf("For more information see https://github.com/gicking/hexfile_merger\n");
+    printf("\n");
+    printf("usage: %s [-h] [-i infile] [-i binfile addr] ... [-o outfile] [-p] [-v level]\n", appname);
+    printf("    -h / --help     print this help\n");
+    printf("    -i / --input    name of input file (for '*.bin' plus starting address, default: none)\n");
+    printf("    -o / --output   name of output file (default: outfile.txt)\n");
+    printf("    -p / --print    print memory image to console\n");
+    printf("    -v / --verbose  verbosity level 0..2 (default: 1)\n");
+    printf("\n");
+    printf("Supported import formats:\n");
+    printf("  - Motorola S19 (*.s19), for a description see https://en.wikipedia.org/wiki/SREC_(file_format)\n");
+    printf("  - Intel Hex (*.hex,*.ihx), for a description see https://en.wikipedia.org/wiki/Intel_HEX\n");
+    printf("  - ASCII table (*.txt) consisting of lines with 'hexAddr  value'. Lines starting with '#' are ignored\n");
+    printf("  - Binary (*.bin) with an additional starting address\n");
+    printf("\n");
+    printf("Supported export formats:\n");
+    printf("  - Motorola S19 (*.s19)\n");
+    printf("  - ASCII table (*.txt) with 'hexAddr  hexValue'\n");
+    printf("  - Binary (*.bin) without starting address\n");
+    printf("\n");
+    printf("Files are imported and exported in the specified order, i.e. later imports may\n");
+    printf("overwrite previous imports. Also outputs only contain the previous imports, i.e.\n");
+    printf("intermediate exports only contain the merged content up to that point in time.\n");
+    printf("\n");
+    Exit(1,0);
   }
-  printf("done\n\n");
 
 
-  // debug: save in plain format
-  //save_memory_image("dump.txt", image, addrStart, addrStop);
+  // print message
+  if (verbose)
+    printf("\n%s (%s)\n", appname, version);
 
+
+  ////////
+  // 2nd pass of commandline arguments: import & export files
+  ////////
+
+  // allocate and init global RAM image (>1MByte requires dynamic allocation)
+  if (!(imageBuf = malloc(LENIMAGEBUF * sizeof(*imageBuf))))
+    Error("Cannot allocate image buffer, try reducing LENIMAGEBUF");
+  memset(imageBuf, 0, LENIMAGEBUF * sizeof(*imageBuf));
+
+  // init global addresses
+  addrStart = 0xFFFFFFFF;
+  addrStop  = 0x00000000;
+  
+  // loop over commandline arguments
+  for (int i=1; i<argc; i++) {
+    
+    // import next ASCII file into RAM
+    if ((!strcmp(argv[i], "--input")) || (!strcmp(argv[i], "-i"))) {
+      
+      // intermediate variables
+      char      infile[STRLEN]="";     // name of input file
+      char      *fileBuf;              // RAM buffer for input file
+      uint32_t  lenFile;               // length of file in fileBuf
+      uint16_t  *tmpImageBuf;          // intermediate RAM image buffer
+      uint32_t  tmpAddrStart;          // start address for image buffer (corresponds to image[0])
+      uint32_t  tmpAddrStop;           // highest address in image buffer (corresponds to image[addrStop-addrStart])
+
+      // allocate intermediate buffers (>1MByte requires dynamic allocation)
+      if (!(fileBuf = malloc(LENFILEBUF * sizeof(*fileBuf))))
+        Error("Cannot allocate file buffer, try reducing LENFILEBUF");
+      if (!(tmpImageBuf = malloc(LENIMAGEBUF * sizeof(*tmpImageBuf))))
+        Error("Cannot allocate temporary image buffer, try reducing LENIMAGEBUF");
+
+      // get file name
+      strncpy(infile, argv[++i], STRLEN-1);
+      
+      // for binary file also get starting address
+      if (strstr(infile, ".bin") != NULL) {
+        strncpy(tmp, argv[++i], STRLEN-1);
+        sscanf(tmp, "%x", &tmpAddrStart);
+      }
+
+      // import file into string buffer (no interpretation, yet)
+      load_file(infile, fileBuf, &lenFile, verbose);
+    
+
+      // convert to memory image, depending on file type 
+      if (strstr(infile, ".s19") != NULL)   // Motorola S-record format
+        convert_s19(fileBuf, lenFile, tmpImageBuf, &tmpAddrStart, &tmpAddrStop, verbose);
+      else if ((strstr(infile, ".hex") != NULL) || (strstr(infile, ".ihx") != NULL))   // Intel HEX-format
+        convert_ihx(fileBuf, lenFile, tmpImageBuf, &tmpAddrStart, &tmpAddrStop, verbose);
+      else if (strstr(infile, ".txt") != NULL)   // text table (hex addr / data)
+        convert_txt(fileBuf, lenFile, tmpImageBuf, &tmpAddrStart, &tmpAddrStop, verbose);
+      else if (strstr(infile, ".bin") != NULL)   // binary file
+        convert_bin(fileBuf, lenFile, tmpImageBuf, tmpAddrStart, &tmpAddrStop, verbose);
+      else
+        Error("Input file %s has unsupported format (*.s19, *.hex, *.ihx, *.txt, *.bin)", infile);
+
+      
+      //////
+      // merge global and intermediate memory image
+      //////
+      
+      // initial file --> just copy
+      if (addrStart > addrStop) {
+
+	// copy data
+        memcpy(imageBuf, tmpImageBuf, (tmpAddrStop-tmpAddrStart+1)*sizeof(*imageBuf));
+        addrStart = tmpAddrStart;
+        addrStop  = tmpAddrStop;
+
+      } // inital file
+
+      // merge images
+      else {
+
+        // new start address is lower than global image
+        if (tmpAddrStart < addrStart) {
+
+          // shift old data up and pad with 0
+          uint32_t offset = addrStart-tmpAddrStart;
+          memmove(&(imageBuf[offset]), imageBuf, (LENIMAGEBUF-offset)*sizeof(*imageBuf));
+          memset(imageBuf, 0, offset * sizeof(*imageBuf));
+
+          // copy new data "below" old image. Only consider set data
+          for (int i=0; i<(tmpAddrStop-tmpAddrStart+1); i++) {
+            if (tmpImageBuf[i])
+              imageBuf[i] = tmpImageBuf[i];
+          }
+  
+        } // new lower address offset
+
+        // new data is "above" old data (tmpAddrStart>=addrStart)
+        else {
+
+          // copy new data to global image. Only consider set data
+          uint32_t offset = tmpAddrStart - addrStart;
+          for (int i=0; i<(tmpAddrStop-tmpAddrStart+1); i++) {
+            if (tmpImageBuf[i])
+              imageBuf[i+offset] = tmpImageBuf[i];
+          }
+
+        
+        } // new data is "above" old data
+
+        // store new global address limits
+        if (tmpAddrStart < addrStart)
+          addrStart = tmpAddrStart;
+        if (tmpAddrStop > addrStop)
+          addrStop = tmpAddrStop;
+        
+      } // merge files
+
+      // debug
+      /*
+      printf("\nfile: 0x%04X..0x%04X\n", tmpAddrStart, tmpAddrStop);
+      for (int i=0; i<tmpAddrStop-tmpAddrStart+1; i++) {
+        if (tmpImageBuf[i])
+          printf("  %3d   0x%04x   0x%04x   0x%02x\n", i, tmpAddrStart+i, tmpImageBuf[i], tmpImageBuf[i] & 0xFF);
+      }
+      printf("\nglobal: 0x%04X..0x%04X\n", addrStart, addrStop);
+      for (int i=0; i<addrStop-addrStart+1; i++) {
+        if (imageBuf[i])
+          printf("  %3d   0x%04x   0x%04x   0x%02x\n", i, addrStart+i, imageBuf[i], imageBuf[i] & 0xFF);
+      }
+      printf("\n");
+      //Exit(1,0);      
+      */
+
+      // release intermediate buffers
+      free(fileBuf);
+      free(tmpImageBuf);
+
+    } // import file
+
+
+    // export current status of RAM image to file
+    else if ((!strcmp(argv[i], "--output")) || (!strcmp(argv[i], "-o"))) {
+  
+      // intermediate variables
+      char      outfile[STRLEN]="";     // name of export file
+
+      // get file name
+      strncpy(outfile, argv[++i], STRLEN-1);
+      
+      // export in format depending on file extension 
+      if (strstr(outfile, ".s19") != NULL)   // Motorola S-record format
+        export_s19(outfile, imageBuf, addrStart, addrStop, verbose);
+      else if (strstr(outfile, ".txt") != NULL)   // text table (hex addr / data)
+        export_txt(outfile, imageBuf, addrStart, addrStop, verbose);
+      else if (strstr(outfile, ".bin") != NULL)   // binary format
+        export_bin(outfile, imageBuf, addrStart, addrStop, verbose);
+      else
+        Error("Unsupported output file extension of '%s' (*.s19, *.txt)", outfile);
+
+    } // export file
+
+
+    // print RAM image to console
+    else if ((!strcmp(argv[i], "--print")) || (!strcmp(argv[i], "-p"))) {
+  
+      // print to console
+      print_console(imageBuf, addrStart, addrStop, verbose);
+      
+    } // print RAM image to console
+
+
+    // dummy parameter: skip, is treated in 1st pass
+    else {
+
+    }
+
+  } // 2nd pass over commandline arguments
+
+  // print message
+  if (verbose)
+    printf("finished\n\n");
+
+  // release global buffer
+  free(imageBuf);
 
   // avoid compiler warnings
   return(0);
