@@ -155,7 +155,7 @@ int main(int argc, char ** argv) {
     printf("\n");
     printf("Supported import formats:\n");
     printf("  - Motorola S19 (*.s19), for a description see https://en.wikipedia.org/wiki/SREC_(file_format)\n");
-    printf("  - Intel Hex (*.hex,*.ihx), for a description see https://en.wikipedia.org/wiki/Intel_HEX\n");
+    printf("  - Intel Hex (*.hex, *.ihx), for a description see https://en.wikipedia.org/wiki/Intel_HEX\n");
     printf("  - ASCII table (*.txt) consisting of lines with 'hexAddr  value'. Lines starting with '#' are ignored\n");
     printf("  - Binary (*.bin) with an additional starting address\n");
     printf("\n");

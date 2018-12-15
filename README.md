@@ -37,8 +37,7 @@ Georg
 
 ====================================
 
-Revision History
-----------------
+# Revision History
 
 1.3 (2018-12-15): 
   - added more verbose information
