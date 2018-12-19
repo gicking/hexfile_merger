@@ -4,7 +4,7 @@
    \author G. Icking-Konert
    \date 2018-12-14
    \version 0.2
-  
+   
    \brief implementation of main routine
    
    this is the main file containing browsing input parameters, calling the import and export routines
@@ -22,19 +22,12 @@
 #include "misc.h"
 #include "version.h"
 #define _MAIN_
-  #include "globals.h"
+  #include "main.h"
 #undef _MAIN_
-
-
-// max length of filenames
-#define  STRLEN   1000
-
 
 
 /**
    \fn int main(int argc, char *argv[])
-   
-   \brief main routine
    
    \param argc      number of commandline arguments + 1
    \param argv      string array containing commandline arguments (argv[0] contains name of executable)
@@ -45,19 +38,21 @@
 */
 int main(int argc, char ** argv) {
  
-  char      appname[STRLEN];                // name of application without path
-  char      version[100];                   // version as string
-  int       verbose;                        // verbosity level (0..2)
-  uint16_t  *imageBuf;                      // global RAM image buffer (high byte != 0 indicates value is set)
-  uint32_t  addrStart;                      // start address for image buffer (corresponds to image[0])
-  uint32_t  addrStop;                       // highest address in image buffer (corresponds to image[addrStop-addrStart])
-  bool      printHelp;                      // flag for printing help page
-  char      tmp[STRLEN];                    // misch buffer
+  // local variables
+  char      appname[STRLEN];      // name of application without path
+  char      version[100];         // version as string
+  int       verbose;              // verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+  uint16_t  *imageBuf;            // global RAM image buffer (high byte != 0 indicates value is set)
+  uint32_t  addrStart;            // start address for image buffer (corresponds to imageBuf[0])
+  uint32_t  addrStop;             // highest address in image buffer (corresponds to imageBuf[addrStop-addrStart])
+  bool      printHelp;            // flag for printing help page
+  char      tmp[STRLEN];          // misc buffer
   
+
   // initialize defaults
-  g_pauseOnExit           = 0;              // no wait for <return> before terminating (dummy)
-  g_backgroundOperation   = 0;              // assume foreground application
-  verbose                 = 1;              // verbosity level (0..2)
+  g_pauseOnExit         = false;  // no wait for <return> before terminating (dummy)
+  g_backgroundOperation = false;  // assume foreground application
+  verbose               = INFORM; // verbosity level medium
 
   // debug: print arguments
   /*
@@ -77,9 +72,10 @@ int main(int argc, char ** argv) {
   setConsoleTitle(tmp);  
 
   
-  ////////
+  /////////////////
   // 1st pass of commandline arguments: set global parameters, no import/export yet
-  ////////
+  /////////////////
+  
   printHelp = false;
   for (int i=1; i<argc; i++) {
     
@@ -87,9 +83,9 @@ int main(int argc, char ** argv) {
     if ((!strcmp(argv[i], "--input")) || (!strcmp(argv[i], "-i"))) {
 
       // get file name
-      if (i<argc-1) {
+      if (i+1<argc) {
         if (strstr(argv[++i], ".bin") != NULL) {  // for binary file skip additionaly address
-          if (i<argc-1)
+          if (i+1<argc)
             i+=1;
           else {
             printHelp = true;
@@ -101,34 +97,41 @@ int main(int argc, char ** argv) {
         printHelp = true;
         break;
       }
+
     } // input
       
+
     // skip file export. Just check parameter number
     else if ((!strcmp(argv[i], "--output")) || (!strcmp(argv[i], "-o"))) {
-      if (i<argc-1)
+      if (i+1<argc)
         i+=1;
       else {
         printHelp = true;
         break;
       }
-    }
+    } // output
       
     // skip printing of RAM image
     else if ((!strcmp(argv[i], "--print")) || (!strcmp(argv[i], "-p"))) {
       // dummy
-    }
+    } // print
 
-    // set verbosity level (0..2)
+
+    // set verbosity level (0..3)
     else if ((!strcmp(argv[i], "--verbose")) || (!strcmp(argv[i], "-v"))) {
-      if (i<argc-1)
+      
+      // get verbosity level
+      if (i+1<argc)
         sscanf(argv[++i],"%d",&verbose);
       else {
         printHelp = true;
         break;
       }
-      if (verbose < 0) verbose = 0;
-      if (verbose > 2) verbose = 2;
-    }
+      if (verbose < MUTE)   verbose = MUTE;
+      if (verbose > CHATTY) verbose = CHATTY;
+
+    } // verbosity
+
 
     // else print help
     else {
@@ -151,7 +154,7 @@ int main(int argc, char ** argv) {
     printf("    -i / --input    name of input file (for '*.bin' plus starting address, default: none)\n");
     printf("    -o / --output   name of output file (default: outfile.txt)\n");
     printf("    -p / --print    print memory image to console\n");
-    printf("    -v / --verbose  verbosity level 0..2 (default: 1)\n");
+    printf("    -v / --verbose  verbosity level 0..3 (default: 2)\n");
     printf("\n");
     printf("Supported import formats:\n");
     printf("  - Motorola S19 (*.s19), for a description see https://en.wikipedia.org/wiki/SREC_(file_format)\n");
@@ -160,6 +163,7 @@ int main(int argc, char ** argv) {
     printf("  - Binary (*.bin) with an additional starting address\n");
     printf("\n");
     printf("Supported export formats:\n");
+    printf("  - print to stdout (-p)\n");
     printf("  - Motorola S19 (*.s19)\n");
     printf("  - ASCII table (*.txt) with 'hexAddr  hexValue'\n");
     printf("  - Binary (*.bin) without starting address\n");
@@ -168,18 +172,18 @@ int main(int argc, char ** argv) {
     printf("overwrite previous imports. Also outputs only contain the previous imports, i.e.\n");
     printf("intermediate exports only contain the merged content up to that point in time.\n");
     printf("\n");
-    Exit(1,0);
+    Exit(0,0);
   }
 
 
   // print message
-  if (verbose)
+  if (verbose != MUTE)
     printf("\n%s (%s)\n", appname, version);
 
 
-  ////////
-  // 2nd pass of commandline arguments: import & export files
-  ////////
+  /////////////////
+  // 2nd pass of commandline arguments: execute actions, e.g. import & export files
+  /////////////////
 
   // allocate and init global RAM image (>1MByte requires dynamic allocation)
   if (!(imageBuf = malloc(LENIMAGEBUF * sizeof(*imageBuf))))
@@ -221,7 +225,6 @@ int main(int argc, char ** argv) {
 
       // import file into string buffer (no interpretation, yet)
       load_file(infile, fileBuf, &lenFile, verbose);
-    
 
       // convert to memory image, depending on file type 
       if (strstr(infile, ".s19") != NULL)   // Motorola S-record format
@@ -346,13 +349,14 @@ int main(int argc, char ** argv) {
 
     // dummy parameter: skip, is treated in 1st pass
     else {
-
+      // dummy
     }
 
   } // 2nd pass over commandline arguments
 
+
   // print message
-  if (verbose)
+  if (verbose != MUTE)
     printf("finished\n\n");
 
   // release global buffer
