@@ -33,16 +33,16 @@
 #define PRM_COLOR_YELLOW        7
 
 
-/// for sleep(ms) use system specific routines
+// system specific delay routines
 #if defined(WIN32)
-  #define SLEEP(a)    Sleep(a)
+  #define SLEEP(a)    Sleep(a)                     //< for sleep(ms) use system specific routines
 #elif defined(__APPLE__) || defined(__unix__)
-  #define SLEEP(a)    usleep((int32_t) a*1000L)
+  #define SLEEP(a)    usleep((int32_t) a*1000L)    //< for sleep(ms) use system specific routines
 #else
   #error OS not supported
 #endif
 
-/// Display error message and terminate
+/// display error message and terminate
 void Error(const char *format, ...);
 
 /// terminate program after cleaning up

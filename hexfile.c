@@ -21,14 +21,12 @@
 #include <stdint.h>
 #include <ctype.h>
 #include "hexfile.h"
+#include "main.h"
 #include "misc.h"
-#include "globals.h"
 
 
 /**
    \fn char *get_line(char **buf, char *line)
-   
-   \brief read next line from RAM buffer
    
    \param[in]  buf        pointer to read from (is updated)
    \param[out] line       pointer to line read (has to be large anough)
@@ -67,12 +65,10 @@ char *get_line(char **buf, char *line) {
 /**
    \fn void load_file(const char *filename, char *fileBuf, uint32_t *lenFileBuf, uint8_t verbose)
    
-   \brief read file into memory buffer
-   
    \param[in]  filename     name of file to read
    \param[out] fileBuf      memory buffer containing file content
    \param[out] lenFileBuf   size of data [B] read from file
-   \param[in]  verbose      verbosity level 
+   \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
    
    read file from file to memory buffer. Don't interpret (is done in separate routine)
 */
@@ -92,7 +88,7 @@ void load_file(const char *filename, char *fileBuf, uint32_t *lenFileBuf, uint8_
     shortname++;
 
   // print message
-  if (verbose >= 1)
+  if (verbose >= SILENT)
     printf("  load '%s' ... ", shortname);
   fflush(stdout);
 
@@ -118,21 +114,17 @@ void load_file(const char *filename, char *fileBuf, uint32_t *lenFileBuf, uint8_
   // close file again
   fclose(fp);
 
-  // terminate buffer (just to be sure)
-  fileBuf[(*lenFileBuf)] = 0;
-  (*lenFileBuf)++;
-    
   // print message
-  if (verbose == 1) {
-    printf("ok\n");
+  if ((verbose == SILENT) || (verbose == INFORM)){
+    printf("done\n");
   }
-  else if (verbose == 2) {
+  else if (verbose == CHATTY) {
     if ((*lenFileBuf)>2048)
-      printf("ok (%1.1fkB)\n", (float) (*lenFileBuf)/1024.0);
+      printf("done (%1.1fkB)\n", (float) (*lenFileBuf)/1024.0);
     else if ((*lenFileBuf)>0)
-      printf("ok (%dB)\n", (*lenFileBuf));
+      printf("done (%dB)\n", (*lenFileBuf));
     else
-      printf("ok, no data read\n");
+      printf("done, no data read\n");
   }
   fflush(stdout);
 
@@ -143,14 +135,12 @@ void load_file(const char *filename, char *fileBuf, uint32_t *lenFileBuf, uint8_
 /**
    \fn void convert_s19(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint32_t *addrStart, uint32_t *addrStop, uint8_t verbose)
    
-   \brief convert s19 format in memory buffer to memory image
-   
    \param[in]  fileBuf      memory buffer to read from (0-terminated)
    \param[in]  lenFileBuf   length of memory buffer
    \param[out] imageBuf     RAM image of file. HB!=0 indicates content. Index 0 corresponds to addrStart
    \param[out] addrStart    start address of image (= lowest address in file)
    \param[out] addrStop     last address of image (= highest address in file)
-   \param[in]  verbose      verbosity level 
+   \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
    
    convert memory buffer containing s19 hexfile to memory buffer. For description of 
    Motorola S19 file format see http://en.wikipedia.org/wiki/SREC_(file_format)
@@ -163,9 +153,9 @@ void convert_s19(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint32_
   uint32_t  addr, val, numData;
   
   // print message
-  if (verbose == 1)
+  if (verbose == INFORM)
     printf("  convert S19 ... ");
-  else if (verbose == 2)
+  else if (verbose == CHATTY)
     printf("  convert Motorola S19 file ... ");
   fflush(stdout);
   
@@ -321,10 +311,10 @@ void convert_s19(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint32_
   */
 
   // print message
-  if (verbose == 1) {
+  if (verbose == INFORM) {
     printf("done\n");
   }
-  else if (verbose == 2) {
+  else if (verbose == CHATTY) {
     if (numData>2048)
       printf("done (%1.1fkB @ 0x%04x - 0x%04x)\n", (float) numData/1024.0, (*addrStart), (*addrStop));
     else if (numData>0)
@@ -341,14 +331,12 @@ void convert_s19(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint32_
 /**
    \fn void convert_ihx(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint32_t *addrStart, uint32_t *addrStop, uint8_t verbose)
    
-   \brief convert intel hex format in memory buffer to memory image
-   
    \param[in]  fileBuf      memory buffer to read from (0-terminated)
    \param[in]  lenFileBuf   length of memory buffer
    \param[out] imageBuf     RAM image of file. HB!=0 indicates content. Index 0 corresponds to addrStart
    \param[out] addrStart    start address of image (= lowest address in file)
    \param[out] addrStop     last address of image (= highest address in file)
-   \param[in]  verbose      verbosity level 
+   \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
    convert memory buffer containing intel hexfile to memory buffer. For description of 
    Intel hex file format see http://en.wikipedia.org/wiki/Intel_HEX
@@ -365,9 +353,9 @@ void convert_ihx(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint32_
   (void) (addrJumpStart);
 
   // print message
-  if (verbose == 1)
+  if (verbose == INFORM)
     printf("  convert IHX ... ");
-  else if (verbose == 2)
+  else if (verbose == CHATTY)
     printf("  convert Intel HEX file ... ");
   fflush(stdout);
   
@@ -578,10 +566,10 @@ void convert_ihx(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint32_
   */
 
   // print message
-  if (verbose == 1) {
+  if (verbose == INFORM) {
     printf("done\n");
   }
-  else if (verbose == 2) {
+  else if (verbose == CHATTY) {
     if (numData>2048)
       printf("done (%1.1fkB @ 0x%04x - 0x%04x)\n", (float) numData/1024.0, (*addrStart), (*addrStop));
     else if (numData>0)
@@ -598,14 +586,12 @@ void convert_ihx(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint32_
 /**
    \fn void convert_txt(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint32_t *addrStart, uint32_t *addrStop, uint8_t verbose)
    
-   \brief convert plain text table (hex addr / data) in memory buffer to memory image
-   
    \param[in]  fileBuf      memory buffer to read from (0-terminated)
    \param[in]  lenFileBuf   length of memory buffer
    \param[out] imageBuf     RAM image of file. HB!=0 indicates content. Index 0 corresponds to addrStart
    \param[out] addrStart    start address of image (= lowest address in file)
    \param[out] addrStop     last address of image (= highest address in file)
-   \param[in]  verbose      verbosity level 
+   \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
    convert memory buffer containing plain table (hex address / value) to memory buffer
 */
@@ -617,9 +603,9 @@ void convert_txt(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint32_
   uint32_t  addr, numData;
   
   // print message
-  if (verbose == 1)
+  if (verbose == INFORM)
     printf("  convert table ... ");
-  else if (verbose == 2)
+  else if (verbose == CHATTY)
     printf("  convert ASCII table file ... ");
   fflush(stdout);
   
@@ -719,10 +705,10 @@ void convert_txt(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint32_
   */
 
   // print message
-  if (verbose == 1) {
+  if (verbose == INFORM) {
     printf("done\n");
   }
-  else if (verbose == 2) {
+  else if (verbose == CHATTY) {
     if (numData>2048)
       printf("done (%1.1fkB @ 0x%04x - 0x%04x)\n", (float) numData/1024.0, (*addrStart), (*addrStop));
     else if (numData>0)
@@ -739,14 +725,12 @@ void convert_txt(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint32_
 /**
    \fn void convert_bin(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint32_t addrStart, uint32_t *addrStop, uint8_t verbose)
    
-   \brief convert binary data in memory buffer to memory image
-   
    \param[in]  fileBuf      memory buffer to read from (0-terminated)
    \param[in]  lenFileBuf   length of memory buffer
    \param[out] imageBuf     RAM image of file. HB!=0 indicates content. Index 0 corresponds to addrStart
    \param[in]  addrStart    start address of image (= lowest address)
    \param[out] addrStop     last address of image (= highest address)
-   \param[in]  verbose      verbosity level 
+   \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
    convert memory buffer containing plain table (hex address / value) to memory buffer
 */
@@ -755,9 +739,9 @@ void convert_bin(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint32_
   uint32_t  numData;
   
   // print message
-  if (verbose == 1)
+  if (verbose == INFORM)
     printf("  convert binary ... ");
-  else if (verbose == 2)
+  else if (verbose == CHATTY)
     printf("  convert binary data ... ");
   fflush(stdout);
   
@@ -786,10 +770,10 @@ void convert_bin(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint32_
   */
 
   // print message
-  if (verbose == 1) {
+  if (verbose == INFORM) {
     printf("done\n");
   }
-  else if (verbose == 2) {
+  else if (verbose == CHATTY) {
     if (numData>2048)
       printf("done (%1.1fkB @ 0x%04x - 0x%04x)\n", (float) numData/1024.0, addrStart, (*addrStop));
     else if (numData>0)
@@ -806,13 +790,11 @@ void convert_bin(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint32_
 /**
    \fn void export_s19(char *filename, uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint8_t verbose)
    
-   \brief export RAM image to file in Motorola s19 format
-   
    \param[in]  filename    name of output file
    \param[in]  imageBuf    RAM image. HB!=0 indicates content. Index 0 corresponds to addrStart
    \param[in]  addrStart   start address of image (= lowest address in file)
    \param[in]  addrStop    last address of image (= highest address in file)
-   \param[in]  verbose     verbosity level 
+   \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
    export RAM image to file in s19 hexfile format. For description of 
    Motorola S19 file format see http://en.wikipedia.org/wiki/SREC_(file_format)
@@ -840,9 +822,11 @@ void export_s19(char *filename, uint16_t *imageBuf, uint32_t addrStart, uint32_t
     shortname++;
 
   // print message
-  if (verbose == 1)
+  if (verbose == SILENT)
+    printf("  export '%s' ... ", shortname);
+  else if (verbose == INFORM)
     printf("  export S19 file '%s' ... ", shortname);
-  else if (verbose == 2)
+  else if (verbose == CHATTY)
     printf("  export Motorola S19 file '%s' ... ", shortname);
   fflush(stdout);
 
@@ -910,10 +894,10 @@ void export_s19(char *filename, uint16_t *imageBuf, uint32_t addrStart, uint32_t
   fclose(fp);
 
   // print message
-  if (verbose == 1) {
+  if ((verbose == SILENT) || (verbose == INFORM)) {
     printf("done\n");
   }
-  else if (verbose == 2) {
+  else if (verbose == CHATTY) {
     if (countByte>2048)
       printf("done (%1.1fkB @ 0x%04x - 0x%04x)\n", (float) countByte/1024.0, addrStart, addrStop);
     else if (countByte>0)
@@ -930,13 +914,11 @@ void export_s19(char *filename, uint16_t *imageBuf, uint32_t addrStart, uint32_t
 /**
    \fn void export_txt(char *filename, uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint8_t verbose)
    
-   \brief export RAM image to file with plain text table (hex addr / data)
-   
    \param[in]  filename    name of output file
    \param[in]  imageBuf    RAM image. HB!=0 indicates content. Index 0 corresponds to addrStart
    \param[in]  addrStart   start address of image (= lowest address in file)
    \param[in]  addrStop    last address of image (= highest address in file)
-   \param[in]  verbose     verbosity level 
+   \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
    export RAM image to file with plain text table (hex addr / data)
 */
@@ -959,9 +941,11 @@ void export_txt(char *filename, uint16_t *imageBuf, uint32_t addrStart, uint32_t
     shortname++;
 
   // print message
-  if (verbose == 1)
+  if (verbose == SILENT)
+    printf("  export '%s' ... ", shortname);
+  else if (verbose == INFORM)
     printf("  export table '%s' ... ", shortname);
-  else if (verbose == 2)
+  else if (verbose == CHATTY)
     printf("  export ASCII table to file '%s' ... ", shortname);
   fflush(stdout);
 
@@ -988,10 +972,10 @@ void export_txt(char *filename, uint16_t *imageBuf, uint32_t addrStart, uint32_t
   fclose(fp);
 
   // print message
-  if (verbose == 1) {
+  if ((verbose == SILENT) || (verbose == INFORM)) {
     printf("done\n");
   }
-  else if (verbose == 2) {
+  else if (verbose == CHATTY) {
     if (countByte>2048)
       printf("done (%1.1fkB @ 0x%04x - 0x%04x)\n", (float) countByte/1024.0, addrStart, addrStop);
     else if (countByte>0)
@@ -1008,13 +992,11 @@ void export_txt(char *filename, uint16_t *imageBuf, uint32_t addrStart, uint32_t
 /**
    \fn void export_bin(char *filename, uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint8_t verbose)
    
-   \brief export RAM image to binary file (w/o address)
-   
    \param[in]  filename    name of output file
    \param[in]  imageBuf    RAM image. HB!=0 indicates content. Index 0 corresponds to addrStart
    \param[in]  addrStart   start address of image (= lowest address in file)
    \param[in]  addrStop    last address of image (= highest address in file)
-   \param[in]  verbose     verbosity level 
+   \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
    export RAM image to binary file. Note that start address is not stored!
 */
@@ -1037,9 +1019,11 @@ void export_bin(char *filename, uint16_t *imageBuf, uint32_t addrStart, uint32_t
     shortname++;
 
   // print message
-  if (verbose == 1)
+  if (verbose == SILENT)
+    printf("  export '%s' ... ", shortname);
+  else if (verbose == INFORM)
     printf("  export binary '%s' ... ", shortname);
-  else if (verbose == 2)
+  else if (verbose == CHATTY)
     printf("  export binary to file '%s' ... ", shortname);
   fflush(stdout);
 
@@ -1063,10 +1047,10 @@ void export_bin(char *filename, uint16_t *imageBuf, uint32_t addrStart, uint32_t
   fclose(fp);
 
   // print message
-  if (verbose == 1) {
+  if ((verbose == SILENT) || (verbose == INFORM)) {
     printf("done\n");
   }
-  else if (verbose == 2) {
+  else if (verbose == CHATTY) {
     if (countByte>2048)
       printf("done (%1.1fkB @ 0x%04x - 0x%04x)\n", (float) countByte/1024.0, addrStart, addrStop);
     else if (countByte>0)
@@ -1083,12 +1067,10 @@ void export_bin(char *filename, uint16_t *imageBuf, uint32_t addrStart, uint32_t
 /**
    \fn void print_console(uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint8_t verbose)
    
-   \brief print RAM image to console
-   
    \param[in]  imageBuf    RAM image. HB!=0 indicates content. Index 0 corresponds to addrStart
    \param[in]  addrStart   start address of image (= lowest address in file)
    \param[in]  addrStop    last address of image (= highest address in file)
-   \param[in]  verbose     verbosity level 
+   \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
    print RAM image to console as "hexAddr  data"
 */
@@ -1099,8 +1081,8 @@ void print_console(uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, ui
   uint32_t  countByte;         // number of actually exported bytes
   
   // print message
-  if (verbose)
-    printf("  print memory image ... \n");
+  if (verbose > MUTE)
+    printf("\n  print memory ... \n");
   fflush(stdout);
 
   // address range [B] to consider
@@ -1118,10 +1100,10 @@ void print_console(uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, ui
   }
 
   // print message
-  if (verbose == 1) {
+  if ((verbose == SILENT) || (verbose == INFORM)) {
     printf("  done\n");
   }
-  else if (verbose == 2) {
+  else if (verbose == CHATTY) {
     if (countByte>2048)
       printf("  done (%1.1fkB @ 0x%04x - 0x%04x)\n", (float) countByte/1024.0, addrStart, addrStop);
     else if (countByte>0)
