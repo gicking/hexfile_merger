@@ -1,12 +1,19 @@
-# hexfiles
+# Hexfiles
 #*.s19
 #*.hex
 #*.txt
 
-# object files
+# Object files
 *.o
 
-# executable
+# Executables
 hexfile_merger
 hexfile_merger.exe
 dump.*
+
+# Doxygen output
+doxygen/html/*
+doxygen/latex/*
+doxygen/man/*
+doxygen/rtf/*
+doxygen/xml/*
