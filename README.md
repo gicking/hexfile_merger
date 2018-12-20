@@ -3,13 +3,14 @@ hexfile_merger
 
 Import multiple files of various formats and merge them to a single output file.
 
-`usage: hexfile_merger [-h] [-i infile] [-i binfile addr] ... [-o outfile] [-p] [-v level]`
+`usage: hexfile_merger [-h] [-i infile [addr]] [-c start stop] [-o outfile] [-p] [-v level]`
 
     -h / --help     print this help
-    -i / --input    name of input file (for '*.bin' plus starting address, default: none)
-    -o / --output   name of output file (default: outfile.txt)
+    -i / --input    name of input file. For binary file (*.bin) add start address in hex
+    -c / --clip     clip memory image to specified memory range (in hex)
+    -o / --output   name of output file
     -p / --print    print memory image to console
-    -v / --verbose  verbosity level 0..2 (default: 1)
+    -v / --verbose  verbosity level 0..3 (default: 2)
 
 Supported import formats:
   - Motorola S19 (*.s19), for a description see https://en.wikipedia.org/wiki/SREC_(file_format)
@@ -39,10 +40,10 @@ Georg
 
 # Revision History
 
-1.3 (2018-12-15): 
+1.3 (2018-12-20): 
   - added more verbose information
   - added binary import and export format
-  - added option to print memory map
+  - added options to print and clip memory map
   - fixed S19 export bugs for >16bit addresses and small images
   - fixed IHX import bug for record type 5
   - harmonized files with https://github.com/gicking/stm8gal

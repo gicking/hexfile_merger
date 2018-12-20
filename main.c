@@ -101,6 +101,17 @@ int main(int argc, char ** argv) {
     } // input
       
 
+    // skip memory clipping. Just check parameter number
+    else if ((!strcmp(argv[i], "--clip")) || (!strcmp(argv[i], "-c"))) {
+      if (i+2<argc)
+        i+=2;
+      else {
+        printHelp = true;
+        break;
+      }
+    } // clip
+      
+
     // skip file export. Just check parameter number
     else if ((!strcmp(argv[i], "--output")) || (!strcmp(argv[i], "-o"))) {
       if (i+1<argc)
@@ -111,6 +122,7 @@ int main(int argc, char ** argv) {
       }
     } // output
       
+
     // skip printing of RAM image
     else if ((!strcmp(argv[i], "--print")) || (!strcmp(argv[i], "-p"))) {
       // dummy
@@ -149,10 +161,11 @@ int main(int argc, char ** argv) {
     printf("Import multiple files of various formats and merge them to a single output file.\n");
     printf("For more information see https://github.com/gicking/hexfile_merger\n");
     printf("\n");
-    printf("usage: %s [-h] [-i infile] [-i binfile addr] ... [-o outfile] [-p] [-v level]\n", appname);
+    printf("usage: %s [-h] [-i infile [addr]] [-c start stop] [-o outfile] [-p] [-v level]\n", appname);
     printf("    -h / --help     print this help\n");
-    printf("    -i / --input    name of input file (for '*.bin' plus starting address, default: none)\n");
-    printf("    -o / --output   name of output file (default: outfile.txt)\n");
+    printf("    -i / --input    name of input file. For binary file (*.bin) add start address in hex\n");
+    printf("    -c / --clip     clip memory image to specified memory range (in hex)\n");
+    printf("    -o / --output   name of output file\n");
     printf("    -p / --print    print memory image to console\n");
     printf("    -v / --verbose  verbosity level 0..3 (default: 2)\n");
     printf("\n");
@@ -314,6 +327,23 @@ int main(int argc, char ** argv) {
       free(tmpImageBuf);
 
     } // import file
+      
+
+    // clip memory image. Set values outside given window to unset
+    else if ((!strcmp(argv[i], "--clip")) || (!strcmp(argv[i], "-c"))) {
+
+      // clipping window start & stop address
+      uint32_t  clipAddrStart;
+      uint32_t  clipAddrStop;
+
+      // get start and stop adress of clipping window
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &clipAddrStart);
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &clipAddrStop);
+
+      // clear all data outside specified clipping window
+      clip_image(imageBuf, addrStart, clipAddrStart, clipAddrStop, verbose);
+
+    } // clip memory image
 
 
     // export current status of RAM image to file
