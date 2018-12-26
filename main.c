@@ -199,12 +199,12 @@ int main(int argc, char ** argv) {
   if ((printHelp==true) || (argc == 1)) {
     printf("\n");
     printf("\n%s (%s)\n\n", appname, version);
-    printf("Import multiple files of various formats and merge them to a single output file.\n");
+    printf("Import files of various formats, apply simple manipulations, and merge them to a single output file.\n");
     printf("For more information see https://github.com/gicking/hexfile_merger\n");
     printf("\n");
-    printf("usage: %s [options] with options\n", appname);
+    printf("usage: %s with following options/commands:\n", appname);
     printf("    -h/-help                            print this help\n");
-    printf("    -v/verbose [level]                  set verbosity level 0..3 (default: 2)\n");
+    printf("    -v/-verbose [level]                 set verbosity level 0..3 (default: 2)\n");
     printf("    -import [infile [addr]]             import from file to image. For binary file (*.bin) add start address in hex\n");
     printf("    -export [outfile]                   export image to file\n");
     printf("    -print                              print image to console\n");
@@ -214,16 +214,16 @@ int main(int argc, char ** argv) {
     printf("    -move [fromStart fromStop toStart]  move data within image (in hex). Unset old data\n");
     printf("\n");
     printf("Supported import formats:\n");
-    printf("  - Motorola S19 (*.s19), for a description see https://en.wikipedia.org/wiki/SREC_(file_format)\n");
-    printf("  - Intel Hex (*.hex, *.ihx), for a description see https://en.wikipedia.org/wiki/Intel_HEX\n");
+    printf("  - Motorola S19 (*.s19), see https://en.wikipedia.org/wiki/SREC_(file_format)\n");
+    printf("  - Intel Hex (*.hex, *.ihx), see https://en.wikipedia.org/wiki/Intel_HEX\n");
     printf("  - ASCII table (*.txt) consisting of lines with 'addr  value' (dec or hex). Lines starting with '#' are ignored\n");
-    printf("  - Binary (*.bin) with an additional starting address\n");
+    printf("  - Binary data (*.bin) with an additional starting address\n");
     printf("\n");
     printf("Supported export formats:\n");
-    printf("  - print to stdout (-p)\n");
+    printf("  - print to stdout (-print)\n");
     printf("  - Motorola S19 (*.s19)\n");
     printf("  - ASCII table (*.txt) with 'hexAddr  hexValue'\n");
-    printf("  - Binary (*.bin) without starting address\n");
+    printf("  - Binary data (*.bin) without starting address\n");
     printf("\n");
     printf("Files are imported and exported in the specified order, i.e. later imports may\n");
     printf("overwrite previous imports. Also outputs only contain the previous imports, i.e.\n");
@@ -250,15 +250,15 @@ int main(int argc, char ** argv) {
   // loop over commandline arguments
   for (int i=1; i<argc; i++) {
     
-    // skip print help (already treated in 1st pass
+    // skip print help (already treated in 1st pass)
     if ((!strcmp(argv[i], "-h")) || (!strcmp(argv[i], "-help"))) {
-
+      i += 0;   // dummy
     } // help
 
 
-    // skip verbosity level and parameters (already treated in 1st pass
+    // skip verbosity level and parameters (already treated in 1st pass)
     else if ((!strcmp(argv[i], "-v")) || (!strcmp(argv[i], "-verbose"))) {
-        i+=1;
+      i+=1;
     } // verbose
 
 
