@@ -1,24 +1,28 @@
 hexfile_merger
 -------------------
 
-Import multiple files of various formats and merge them to a single output file.
+Import files of various formats, manipulated them, and merge them to a single output file
 
-`usage: hexfile_merger [-h] [-i infile [addr]] [-c start stop] [-o outfile] [-p] [-v level]`
+`usage: hexfile_merger [options] with options`
 
-    -h / --help     print this help
-    -i / --input    name of input file. For binary file (*.bin) add start address in hex
-    -c / --clip     clip memory image to specified memory range (in hex)
-    -o / --output   name of output file
-    -p / --print    print memory image to console
-    -v / --verbose  verbosity level 0..3 (default: 2)
+    -h/-help                            print this help
+    -v/verbose [level]                  set verbosity level 0..3 (default: 2)
+    -import [infile [addr]]             import from file to image. For binary file (*.bin) add start address in hex
+    -export [outfile]                   export image to file
+    -print                              print image to console
+    -clip [addrStart addrStop]          clip image to specified range (in hex)
+    -clear [addrStart addrStop]         clear image data in specified range (in hex)
+    -copy [fromStart fromStop toStart]  copy data within image (in hex). Keep old data
+    -move [fromStart fromStop toStart]  move data within image (in hex). Unset old data
 
 Supported import formats:
   - Motorola S19 (*.s19), for a description see https://en.wikipedia.org/wiki/SREC_(file_format)
   - Intel Hex (*.hex, *.ihx), for a description see https://en.wikipedia.org/wiki/Intel_HEX
-  - ASCII table (*.txt) consisting of lines with 'hexAddr  value'. Lines starting with '#' are ignored
+  - ASCII table (*.txt) consisting of lines with 'addr  value' (dec or hex). Lines starting with '#' are ignored
   - Binary (*.bin) with an additional starting address
 
 Supported export formats:
+  - print to stdout (-p)
   - Motorola S19 (*.s19)
   - ASCII table (*.txt) with 'hexAddr  hexValue'
   - Binary (*.bin) without starting address
@@ -40,10 +44,12 @@ Georg
 
 # Revision History
 
-1.3 (2018-12-20): 
+1.3 (2018-12-24): 
+  - changed commandline keywords (became too complex)
   - added more verbose information
   - added binary import and export format
-  - added options to print and clip memory map
+  - added printing to console
+  - added image manipulation (clip, clear, copy, move)
   - fixed S19 export bugs for >16bit addresses and small images
   - fixed IHX import bug for record type 5
   - harmonized files with https://github.com/gicking/stm8gal
