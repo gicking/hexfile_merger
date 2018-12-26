@@ -43,8 +43,6 @@ int main(int argc, char ** argv) {
   char      version[100];         // version as string
   int       verbose;              // verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
   uint16_t  *imageBuf;            // global RAM image buffer (high byte != 0 indicates value is set)
-  uint32_t  addrStart;            // start address for image buffer (corresponds to imageBuf[0])
-  uint32_t  addrStop;             // highest address in image buffer (corresponds to imageBuf[addrStop-addrStart])
   bool      printHelp;            // flag for printing help page
   char      tmp[STRLEN];          // misc buffer
   
@@ -78,9 +76,35 @@ int main(int argc, char ** argv) {
   
   printHelp = false;
   for (int i=1; i<argc; i++) {
+
+    // print help
+    if ((!strcmp(argv[i], "-h")) || (!strcmp(argv[i], "-help"))) {
+
+      // set flag for printing help
+      printHelp = true;
+      break;
+
+    } // help
     
+
+    // set verbosity level (0..3)
+    else if ((!strcmp(argv[i], "-v")) || (!strcmp(argv[i], "-verbose"))) {
+      
+      // get verbosity level
+      if (i+1<argc)
+        sscanf(argv[++i],"%d",&verbose);
+      else {
+        printHelp = true;
+        break;
+      }
+      if (verbose < MUTE)   verbose = MUTE;
+      if (verbose > CHATTY) verbose = CHATTY;
+
+    } // verbosity
+    
+
     // skip file import. Just check parameter number
-    if ((!strcmp(argv[i], "--input")) || (!strcmp(argv[i], "-i"))) {
+    else if (!strcmp(argv[i], "-import")) {
 
       // get file name
       if (i+1<argc) {
@@ -98,11 +122,28 @@ int main(int argc, char ** argv) {
         break;
       }
 
-    } // input
+    } // import
+      
+
+    // skip file export. Just check parameter number
+    else if (!strcmp(argv[i], "-export")) {
+      if (i+1<argc)
+        i+=1;
+      else {
+        printHelp = true;
+        break;
+      }
+    } // export
+      
+
+    // skip print
+    else if (!strcmp(argv[i], "-print")) {
+
+    } // print
       
 
     // skip memory clipping. Just check parameter number
-    else if ((!strcmp(argv[i], "--clip")) || (!strcmp(argv[i], "-c"))) {
+    else if (!strcmp(argv[i], "-clip")) {
       if (i+2<argc)
         i+=2;
       else {
@@ -112,37 +153,37 @@ int main(int argc, char ** argv) {
     } // clip
       
 
-    // skip file export. Just check parameter number
-    else if ((!strcmp(argv[i], "--output")) || (!strcmp(argv[i], "-o"))) {
-      if (i+1<argc)
-        i+=1;
+    // skip memory clearing. Just check parameter number
+    else if (!strcmp(argv[i], "-clear")) {
+      if (i+2<argc)
+        i+=2;
       else {
         printHelp = true;
         break;
       }
-    } // output
+    } // clear
       
 
-    // skip printing of RAM image
-    else if ((!strcmp(argv[i], "--print")) || (!strcmp(argv[i], "-p"))) {
-      // dummy
-    } // print
-
-
-    // set verbosity level (0..3)
-    else if ((!strcmp(argv[i], "--verbose")) || (!strcmp(argv[i], "-v"))) {
-      
-      // get verbosity level
-      if (i+1<argc)
-        sscanf(argv[++i],"%d",&verbose);
+    // skip memory copy. Just check parameter number
+    else if (!strcmp(argv[i], "-copy")) {
+      if (i+3<argc)
+        i+=3;
       else {
         printHelp = true;
         break;
       }
-      if (verbose < MUTE)   verbose = MUTE;
-      if (verbose > CHATTY) verbose = CHATTY;
+    } // copy
+      
 
-    } // verbosity
+    // skip memory move. Just check parameter number
+    else if (!strcmp(argv[i], "-move")) {
+      if (i+3<argc)
+        i+=3;
+      else {
+        printHelp = true;
+        break;
+      }
+    } // move
 
 
     // else print help
@@ -161,18 +202,21 @@ int main(int argc, char ** argv) {
     printf("Import multiple files of various formats and merge them to a single output file.\n");
     printf("For more information see https://github.com/gicking/hexfile_merger\n");
     printf("\n");
-    printf("usage: %s [-h] [-i infile [addr]] [-c start stop] [-o outfile] [-p] [-v level]\n", appname);
-    printf("    -h / --help     print this help\n");
-    printf("    -i / --input    name of input file. For binary file (*.bin) add start address in hex\n");
-    printf("    -c / --clip     clip memory image to specified memory range (in hex)\n");
-    printf("    -o / --output   name of output file\n");
-    printf("    -p / --print    print memory image to console\n");
-    printf("    -v / --verbose  verbosity level 0..3 (default: 2)\n");
+    printf("usage: %s [options] with options\n", appname);
+    printf("    -h/-help                            print this help\n");
+    printf("    -v/verbose [level]                  set verbosity level 0..3 (default: 2)\n");
+    printf("    -import [infile [addr]]             import from file to image. For binary file (*.bin) add start address in hex\n");
+    printf("    -export [outfile]                   export image to file\n");
+    printf("    -print                              print image to console\n");
+    printf("    -clip [addrStart addrStop]          clip image to specified range (in hex)\n");
+    printf("    -clear [addrStart addrStop]         clear image data in specified range (in hex)\n");
+    printf("    -copy [fromStart fromStop toStart]  copy data within image (in hex). Keep old data\n");
+    printf("    -move [fromStart fromStop toStart]  move data within image (in hex). Unset old data\n");
     printf("\n");
     printf("Supported import formats:\n");
     printf("  - Motorola S19 (*.s19), for a description see https://en.wikipedia.org/wiki/SREC_(file_format)\n");
     printf("  - Intel Hex (*.hex, *.ihx), for a description see https://en.wikipedia.org/wiki/Intel_HEX\n");
-    printf("  - ASCII table (*.txt) consisting of lines with 'hexAddr  value'. Lines starting with '#' are ignored\n");
+    printf("  - ASCII table (*.txt) consisting of lines with 'addr  value' (dec or hex). Lines starting with '#' are ignored\n");
     printf("  - Binary (*.bin) with an additional starting address\n");
     printf("\n");
     printf("Supported export formats:\n");
@@ -203,29 +247,33 @@ int main(int argc, char ** argv) {
     Error("Cannot allocate image buffer, try reducing LENIMAGEBUF");
   memset(imageBuf, 0, LENIMAGEBUF * sizeof(*imageBuf));
 
-  // init global addresses
-  addrStart = 0xFFFFFFFF;
-  addrStop  = 0x00000000;
-  
   // loop over commandline arguments
   for (int i=1; i<argc; i++) {
     
+    // skip print help (already treated in 1st pass
+    if ((!strcmp(argv[i], "-h")) || (!strcmp(argv[i], "-help"))) {
+
+    } // help
+
+
+    // skip verbosity level and parameters (already treated in 1st pass
+    else if ((!strcmp(argv[i], "-v")) || (!strcmp(argv[i], "-verbose"))) {
+        i+=1;
+    } // verbose
+
+
     // import next ASCII file into RAM
-    if ((!strcmp(argv[i], "--input")) || (!strcmp(argv[i], "-i"))) {
+    else if (!strcmp(argv[i], "-import")) {
       
       // intermediate variables
       char      infile[STRLEN]="";     // name of input file
       char      *fileBuf;              // RAM buffer for input file
       uint32_t  lenFile;               // length of file in fileBuf
-      uint16_t  *tmpImageBuf;          // intermediate RAM image buffer
-      uint32_t  tmpAddrStart;          // start address for image buffer (corresponds to image[0])
-      uint32_t  tmpAddrStop;           // highest address in image buffer (corresponds to image[addrStop-addrStart])
+      uint32_t  addrStart;             // address offset for binary file
 
-      // allocate intermediate buffers (>1MByte requires dynamic allocation)
+      // allocate intermediate buffer (>1MByte requires dynamic allocation)
       if (!(fileBuf = malloc(LENFILEBUF * sizeof(*fileBuf))))
         Error("Cannot allocate file buffer, try reducing LENFILEBUF");
-      if (!(tmpImageBuf = malloc(LENIMAGEBUF * sizeof(*tmpImageBuf))))
-        Error("Cannot allocate temporary image buffer, try reducing LENIMAGEBUF");
 
       // get file name
       strncpy(infile, argv[++i], STRLEN-1);
@@ -233,7 +281,7 @@ int main(int argc, char ** argv) {
       // for binary file also get starting address
       if (strstr(infile, ".bin") != NULL) {
         strncpy(tmp, argv[++i], STRLEN-1);
-        sscanf(tmp, "%x", &tmpAddrStart);
+        sscanf(tmp, "%x", &addrStart);
       }
 
       // import file into string buffer (no interpretation, yet)
@@ -241,113 +289,40 @@ int main(int argc, char ** argv) {
 
       // convert to memory image, depending on file type 
       if (strstr(infile, ".s19") != NULL)   // Motorola S-record format
-        convert_s19(fileBuf, lenFile, tmpImageBuf, &tmpAddrStart, &tmpAddrStop, verbose);
+        convert_s19(fileBuf, lenFile, imageBuf, verbose);
       else if ((strstr(infile, ".hex") != NULL) || (strstr(infile, ".ihx") != NULL))   // Intel HEX-format
-        convert_ihx(fileBuf, lenFile, tmpImageBuf, &tmpAddrStart, &tmpAddrStop, verbose);
+        convert_ihx(fileBuf, lenFile, imageBuf, verbose);
       else if (strstr(infile, ".txt") != NULL)   // text table (hex addr / data)
-        convert_txt(fileBuf, lenFile, tmpImageBuf, &tmpAddrStart, &tmpAddrStop, verbose);
+        convert_txt(fileBuf, lenFile, imageBuf, verbose);
       else if (strstr(infile, ".bin") != NULL)   // binary file
-        convert_bin(fileBuf, lenFile, tmpImageBuf, tmpAddrStart, &tmpAddrStop, verbose);
+        convert_bin(fileBuf, lenFile, addrStart, imageBuf, verbose);
       else
         Error("Input file %s has unsupported format (*.s19, *.hex, *.ihx, *.txt, *.bin)", infile);
-
-      
-      //////
-      // merge global and intermediate memory image
-      //////
-      
-      // initial file --> just copy
-      if (addrStart > addrStop) {
-
-	// copy data
-        memcpy(imageBuf, tmpImageBuf, (tmpAddrStop-tmpAddrStart+1)*sizeof(*imageBuf));
-        addrStart = tmpAddrStart;
-        addrStop  = tmpAddrStop;
-
-      } // inital file
-
-      // merge images
-      else {
-
-        // new start address is lower than global image
-        if (tmpAddrStart < addrStart) {
-
-          // shift old data up and pad with 0
-          uint32_t offset = addrStart-tmpAddrStart;
-          memmove(&(imageBuf[offset]), imageBuf, (LENIMAGEBUF-offset)*sizeof(*imageBuf));
-          memset(imageBuf, 0, offset * sizeof(*imageBuf));
-
-          // copy new data "below" old image. Only consider set data
-          for (int i=0; i<(tmpAddrStop-tmpAddrStart+1); i++) {
-            if (tmpImageBuf[i])
-              imageBuf[i] = tmpImageBuf[i];
-          }
-  
-        } // new lower address offset
-
-        // new data is "above" old data (tmpAddrStart>=addrStart)
-        else {
-
-          // copy new data to global image. Only consider set data
-          uint32_t offset = tmpAddrStart - addrStart;
-          for (int i=0; i<(tmpAddrStop-tmpAddrStart+1); i++) {
-            if (tmpImageBuf[i])
-              imageBuf[i+offset] = tmpImageBuf[i];
-          }
-
-        
-        } // new data is "above" old data
-
-        // store new global address limits
-        if (tmpAddrStart < addrStart)
-          addrStart = tmpAddrStart;
-        if (tmpAddrStop > addrStop)
-          addrStop = tmpAddrStop;
-        
-      } // merge files
-
+ 
       // debug
-      /*
-      printf("\nfile: 0x%04X..0x%04X\n", tmpAddrStart, tmpAddrStop);
-      for (int i=0; i<tmpAddrStop-tmpAddrStart+1; i++) {
-        if (tmpImageBuf[i])
-          printf("  %3d   0x%04x   0x%04x   0x%02x\n", i, tmpAddrStart+i, tmpImageBuf[i], tmpImageBuf[i] & 0xFF);
+      #if defined(DEBUG)
+      { 
+        uint32_t addr, addrStart, addrStop, numData;
+        get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
+        printf("\n\n");
+        printf("addr: 0x%04X..0x%04X   %d\n", addrStart, addrStop, numData);
+        for (addr=0; addr<LENIMAGEBUF; addr++) {
+          if (imageBuf[addr] & 0xFF00)
+            printf(" 0x%04x   0x%02x\n", addr, (int) (imageBuf[addr]) & 0xFF);
+        }
+        printf("\n");
+        //Exit(1,0);
       }
-      printf("\nglobal: 0x%04X..0x%04X\n", addrStart, addrStop);
-      for (int i=0; i<addrStop-addrStart+1; i++) {
-        if (imageBuf[i])
-          printf("  %3d   0x%04x   0x%04x   0x%02x\n", i, addrStart+i, imageBuf[i], imageBuf[i] & 0xFF);
-      }
-      printf("\n");
-      //Exit(1,0);      
-      */
+      #endif
 
       // release intermediate buffers
       free(fileBuf);
-      free(tmpImageBuf);
-
-    } // import file
       
-
-    // clip memory image. Set values outside given window to unset
-    else if ((!strcmp(argv[i], "--clip")) || (!strcmp(argv[i], "-c"))) {
-
-      // clipping window start & stop address
-      uint32_t  clipAddrStart;
-      uint32_t  clipAddrStop;
-
-      // get start and stop adress of clipping window
-      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &clipAddrStart);
-      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &clipAddrStop);
-
-      // clear all data outside specified clipping window
-      clip_image(imageBuf, addrStart, clipAddrStart, clipAddrStop, verbose);
-
-    } // clip memory image
+    } // import file
 
 
-    // export current status of RAM image to file
-    else if ((!strcmp(argv[i], "--output")) || (!strcmp(argv[i], "-o"))) {
+    // export RAM image to file
+    else if (!strcmp(argv[i], "-export")) {
   
       // intermediate variables
       char      outfile[STRLEN]="";     // name of export file
@@ -357,11 +332,11 @@ int main(int argc, char ** argv) {
       
       // export in format depending on file extension 
       if (strstr(outfile, ".s19") != NULL)   // Motorola S-record format
-        export_s19(outfile, imageBuf, addrStart, addrStop, verbose);
-      else if (strstr(outfile, ".txt") != NULL)   // text table (hex addr / data)
-        export_txt(outfile, imageBuf, addrStart, addrStop, verbose);
+        export_s19(outfile, imageBuf, verbose);
+      else if (strstr(outfile, ".txt") != NULL)   // text table (hex addr / hex data)
+        export_txt(outfile, imageBuf, verbose);
       else if (strstr(outfile, ".bin") != NULL)   // binary format
-        export_bin(outfile, imageBuf, addrStart, addrStop, verbose);
+        export_bin(outfile, imageBuf, verbose);
       else
         Error("Unsupported output file extension of '%s' (*.s19, *.txt)", outfile);
 
@@ -369,12 +344,70 @@ int main(int argc, char ** argv) {
 
 
     // print RAM image to console
-    else if ((!strcmp(argv[i], "--print")) || (!strcmp(argv[i], "-p"))) {
+    else if (!strcmp(argv[i], "-print")) {
   
-      // print to console
-      print_console(imageBuf, addrStart, addrStop, verbose);
+      // print to stdout
+      export_txt("stdout", imageBuf, verbose);
+
+    } // export file/print
       
-    } // print RAM image to console
+
+    // clip memory image. Set values outside given window to unset
+    else if (!strcmp(argv[i], "-clip")) {
+
+      // get start and stop adress of address window
+      uint32_t  addrStart, addrStop;
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &addrStart);
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &addrStop);
+
+      // clear all data outside specified window
+      clip_image(imageBuf, addrStart, addrStop, verbose);
+
+    } // clip memory image
+      
+
+    // clear data in memory image. Set values within given window to "undefined"
+    else if (!strcmp(argv[i], "-clear")) {
+
+      // get start and stop adress of address window
+      uint32_t  addrStart, addrStop;
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &addrStart);
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &addrStop);
+
+      // clear all data inside specified window
+      clear_image(imageBuf, addrStart, addrStop, verbose);
+
+    } // clear data in memory image
+      
+
+    // copy data within in memory image
+    else if (!strcmp(argv[i], "-copy")) {
+
+      // get start and stop adress of address window
+      uint32_t  sourceStart, sourceStop, targetStart;
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &sourceStart);
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &sourceStop);
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &targetStart);
+
+      // clear all data inside specified window
+      copy_image(imageBuf, sourceStart, sourceStop, targetStart, verbose);
+
+    } // copy data in memory image
+      
+
+    // move data within in memory image
+    else if (!strcmp(argv[i], "-move")) {
+
+      // get start and stop adress of address window
+      uint32_t  sourceStart, sourceStop, targetStart;
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &sourceStart);
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &sourceStop);
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &targetStart);
+
+      // clear all data inside specified window
+      move_image(imageBuf, sourceStart, sourceStop, targetStart, verbose);
+
+    } // move data in memory image
 
 
     // dummy parameter: skip, is treated in 1st pass
