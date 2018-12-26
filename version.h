@@ -29,10 +29,12 @@
 Revision History
 ----------------
 
-1.3 (2018-12-15): 
+1.3 (2018-12-24): 
+  - changed commandline keywords (became too complex)
   - added more verbose information
   - added binary import and export format
-  - added option to print memory map
+  - added printing to console
+  - added image manipulation (clip, clear, copy, move)
   - fixed S19 export bugs for >16bit addresses and small images
   - fixed IHX import bug for record type 5
   - harmonized files with https://github.com/gicking/stm8gal
