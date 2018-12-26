@@ -895,13 +895,12 @@ void move_image(uint16_t *imageBuf, uint32_t sourceStart, uint32_t sourceStop, u
 void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   FILE      *fp;               // file pointer
-  int       lenLine;           // length of exported line
-  int       lenData;           // actual data bytes in exported line
+  const int maxLine = 32;      // max. length of data line 
   uint8_t   data;              // value to store
   uint32_t  chk;               // checksum
   uint32_t  addrStart, addrStop, numData;  // image data range
   char      *shortname;        // filename w/o path
-
+    
   // strip path from filename for readability
   #if defined(WIN32)
     shortname = strrchr(filename, '\\');
@@ -929,57 +928,60 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // start with dummy header line to avoid 'srecord' warning
   fprintf(fp, "S00F000068656C6C6F202020202000003C\n");
+
+  // get min/max addresses and number of bytes (HB!=0x00) in image
+  get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
   
   // store in lines of 32B
-  lenLine = 32;
-  for (int i=0; i<LENIMAGEBUF; i+=lenLine) {
+  uint32_t addr = addrStart;
+  while (addr <= addrStop) {
 
-    // get min/max data index in next 32B containing data (HB!=0)
-    int minIdx = 0xFFFF;
-    int maxIdx = -1;
-    for (int j=0; j<lenLine; j++) {
-      if (imageBuf[i+j] & 0xFF00) {
-        if (j < minIdx)   minIdx = j;
-        if (j > maxIdx)   maxIdx = j;
-      }
+    // find next data byte (=start address of next block)
+    while (((imageBuf[addr] & 0xFF00) == 0) && (addr <= addrStop))
+      addr++;
+    uint32_t addrBlock = addr;
+
+    // end address reached -> done
+    if (addr > addrStop)
+      break;
+
+    // set length of next data block: max 128B and align with 128 for speed (see UM0560 section 3.4)  
+    int lenBlock = 1; 
+    while ((lenBlock < maxLine) && ((addr+lenBlock) <= addrStop) && (imageBuf[addr+lenBlock] & 0xFF00) && ((addr+lenBlock) % maxLine)) {
+      lenBlock++;
     }
-
-    // no data in line -> skip
-    if (maxIdx < minIdx)
-      continue;
+    //printf("0x%04x   0x%04x   %d\n", addrBlock, addrBlock+lenBlock-1, lenBlock);
 
 
     ///////
     // save data in next line, see http://en.wikipedia.org/wiki/SREC_(file_format)
     ///////
 
-    // line starting address and bytes in line
-    addrStart = i + minIdx;
-    lenData   = maxIdx - minIdx + 1;
-    //printf("\n0x%04x %d %d %d\n", addrStart, minIdx, maxIdx, lenData);
- 
     // save data, accound for address width
-    if (addrStart <= 0xFFFF) {
-      fprintf(fp, "S1%02X%04X", lenData+3, addrStart);        // 16-bit address: 2B addr + data + 1B chk
-      chk = (uint8_t) (lenData+3) + (uint8_t) addrStart + (uint8_t) (addrStart >> 8);
+    if (addrBlock <= 0xFFFF) {
+      fprintf(fp, "S1%02X%04X", lenBlock+3, addrBlock);        // 16-bit address: 2B addr + data + 1B chk
+      chk = (uint8_t) (lenBlock+3) + (uint8_t) addrBlock + (uint8_t) (addrBlock >> 8);
     }
-    else if (addrStart <= 0xFFFFFF) {
-      fprintf(fp, "S2%02X%06X", lenData+4, addrStart);        // 24-bit address: 3B addr + data + 1B chk
-      chk = (uint8_t) (lenData+4) + (uint8_t) addrStart + (uint8_t) (addrStart >> 8) + (uint8_t) (addrStart >> 16);
+    else if (addrBlock <= 0xFFFFFF) {
+      fprintf(fp, "S2%02X%06X", lenBlock+4, addrBlock);        // 24-bit address: 3B addr + data + 1B chk
+      chk = (uint8_t) (lenBlock+4) + (uint8_t) addrBlock + (uint8_t) (addrBlock >> 8) + (uint8_t) (addrBlock >> 16);
     }
     else {
-      fprintf(fp, "S3%02X%08X", lenData+5, addrStart);        // 32-bit address: 4B addr + data + 1B chk
-      chk = (uint8_t) (lenData+5) + (uint8_t) addrStart + (uint8_t) (addrStart >> 8) + (uint8_t) (addrStart >> 16) + (uint8_t) (addrStart >> 24);
+      fprintf(fp, "S3%02X%08X", lenBlock+5, addrBlock);        // 32-bit address: 4B addr + data + 1B chk
+      chk = (uint8_t) (lenBlock+5) + (uint8_t) addrBlock + (uint8_t) (addrBlock >> 8) + (uint8_t) (addrBlock >> 16) + (uint8_t) (addrBlock >> 24);
     }
-    for (int j=0; j<lenData; j++) {
-      data = (uint8_t) (imageBuf[addrStart+j] & 0x00FF);
+    for (int j=0; j<lenBlock; j++) {
+      data = (uint8_t) (imageBuf[addrBlock+j] & 0x00FF);
       chk += data;
       fprintf(fp, "%02X", data);
     }
     chk = ((chk & 0xFF) ^ 0xFF);
     fprintf(fp, "%02X\n", chk);
 
-  } // loop over lines
+    // go to next potential block
+    addr += lenBlock;
+
+  } // loop over address range 
 
   // attach generic EOF line
   fprintf(fp, "S903FFFFFE\n");
@@ -988,9 +990,6 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   fflush(fp);
   fclose(fp);
 
-  // get address range containing data (HB!=0x00)
-  get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
-  
   // print message
   if ((verbose == SILENT) || (verbose == INFORM)) {
     printf("done\n");
@@ -1078,8 +1077,11 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   else
     fprintf(fp, "    address	value\n");
 
+  // get min/max addresses and number of bytes (HB!=0x00) in image
+  get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
+
   // output each defined value (HB!=0x00) in a separate line (addr \t value)
-  for (int i=0; i<LENIMAGEBUF; i++) {
+  for (int i=addrStart; i<=addrStop; i++) {
     if (imageBuf[i] & 0xFF00) {
       if (!flagFile)
         fprintf(fp,"    ");
@@ -1094,9 +1096,6 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     fclose(fp);
   else
     fprintf(fp,"  ");
-
-  // get address range containing data (HB!=0x00)
-  get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
   
   // print message
   if ((verbose == SILENT) || (verbose == INFORM)) {
@@ -1161,7 +1160,7 @@ void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   // get address range containing data (HB!=0x00)
   get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
   
-  // store every value in address range
+  // store every value in address range. Undefined values are set to 0x00
   countByte = 0;
   for (uint32_t addr=addrStart; addr<=addrStop; addr++) {
     if (imageBuf[addr] & 0xFF00)
