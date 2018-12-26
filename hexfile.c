@@ -645,12 +645,11 @@ void get_image_size(uint16_t *imageBuf, uint32_t scanStart, uint32_t scanStop, u
   
   // simple checks of scan window
   if (scanStart > scanStop)
-    Error("scan start address 0x%04x is higher than end address 0x%04x)", scanStart, scanStop);
+    Error("scan start address 0x%04x higher than end address 0x%04x", scanStart, scanStop);
   if (scanStart > LENIMAGEBUF)
-    Error("scan start address 0x%04x exceeds buffer size 0x%04x)", scanStart, LENIMAGEBUF);
+    Error("scan start address 0x%04x exceeds buffer size 0x%04x", scanStart, LENIMAGEBUF);
   if (scanStop > LENIMAGEBUF)
-    Error("scan end address 0x%04x exceeds buffer size 0x%04x)", scanStop, LENIMAGEBUF);
-
+    Error("scan end address 0x%04x exceeds buffer size 0x%04x", scanStop, LENIMAGEBUF);
 
   // loop though image and check for defined data (HB!=0x00)
   *addrStart = 0xFFFFFFFF;
@@ -692,6 +691,14 @@ void clip_image(uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint8
     printf("  clip memory image ... ");
   fflush(stdout);
   
+  // simple checks of scan window
+  if (addrStart > addrStop)
+    Error("start address 0x%04x higher than end address 0x%04x", addrStart, addrStop);
+  if (addrStart > LENIMAGEBUF)
+    Error("start address 0x%04x exceeds buffer size 0x%04x", addrStart, LENIMAGEBUF);
+  if (addrStop > LENIMAGEBUF)
+    Error("end address 0x%04x exceeds buffer size 0x%04x", addrStop, LENIMAGEBUF);
+
   // loop over memory image and clear all data outside specified clipping window
   numCleared = 0;
   for (uint32_t addr=0; addr<LENIMAGEBUF; addr++) {
@@ -741,6 +748,14 @@ void clear_image(uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint
     printf("  clear memory image ... ");
   fflush(stdout);
   
+  // simple checks of scan window
+  if (addrStart > addrStop)
+    Error("start address 0x%04x higher than end address 0x%04x", addrStart, addrStop);
+  if (addrStart > LENIMAGEBUF)
+    Error("start address 0x%04x exceeds buffer size 0x%04x", addrStart, LENIMAGEBUF);
+  if (addrStop > LENIMAGEBUF)
+    Error("end address 0x%04x exceeds buffer size 0x%04x", addrStop, LENIMAGEBUF);
+
   // loop over memory image and clear all data inside specified window
   numCleared = 0;
   for (uint32_t addr=0; addr<LENIMAGEBUF; addr++) {
@@ -789,6 +804,18 @@ void copy_image(uint16_t *imageBuf, uint32_t sourceStart, uint32_t sourceStop, u
     printf("  copy image data ... ");
   fflush(stdout);
   
+  // simple checks of scan window
+  if (sourceStart > sourceStop)
+    Error("source start address 0x%04x higher than end address 0x%04x", sourceStart, sourceStop);
+  if (sourceStart > LENIMAGEBUF)
+    Error("source start address 0x%04x exceeds buffer size 0x%04x", sourceStart, LENIMAGEBUF);
+  if (sourceStop > LENIMAGEBUF)
+    Error("source end address 0x%04x exceeds buffer size 0x%04x", sourceStop, LENIMAGEBUF);
+  if (targetStart > LENIMAGEBUF)
+    Error("target start address 0x%04x exceeds buffer size 0x%04x", targetStart, LENIMAGEBUF);
+  if (targetStart+(sourceStop-sourceStart+1) > LENIMAGEBUF)
+    Error("target end address 0x%04x exceeds buffer size 0x%04x", targetStart+(sourceStop-sourceStart+1), LENIMAGEBUF);
+
   // get number of data to copy (HB!=0x00)
   int numCopied = 0;
   for (int i=sourceStart; i<=sourceStop; i++) {
@@ -841,6 +868,18 @@ void move_image(uint16_t *imageBuf, uint32_t sourceStart, uint32_t sourceStop, u
     printf("  move image data ... ");
   fflush(stdout);
   
+  // simple checks of scan window
+  if (sourceStart > sourceStop)
+    Error("source start address 0x%04x higher than end address 0x%04x", sourceStart, sourceStop);
+  if (sourceStart > LENIMAGEBUF)
+    Error("source start address 0x%04x exceeds buffer size 0x%04x", sourceStart, LENIMAGEBUF);
+  if (sourceStop > LENIMAGEBUF)
+    Error("source end address 0x%04x exceeds buffer size 0x%04x", sourceStop, LENIMAGEBUF);
+  if (targetStart > LENIMAGEBUF)
+    Error("target start address 0x%04x exceeds buffer size 0x%04x", targetStart, LENIMAGEBUF);
+  if (targetStart+(sourceStop-sourceStart+1) > LENIMAGEBUF)
+    Error("target end address 0x%04x exceeds buffer size 0x%04x", targetStart+(sourceStop-sourceStart+1), LENIMAGEBUF);
+
   // get number of data to move (HB!=0x00)
   int numMoved = 0;
   for (int i=sourceStart; i<=sourceStop; i++) {
@@ -1011,7 +1050,7 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 /**
    \fn void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose)
    
-   \param[in]  filename    name of output file or stream (e.g. 'stdout')
+   \param[in]  filename    name of output file or stdout ('console')
    \param[in]  imageBuf    memory image. HB!=0 indicates content. Index 0 corresponds to addrStart
    \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
@@ -1024,17 +1063,10 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   char      *shortname;        // filename w/o path
   bool      flagFile = true;   // output to file or console?
   
-  // output to console streams
-  if (!strcmp(filename, "stdout")) {
+  // output to stdout
+  if (!strcmp(filename, "console")) {
     flagFile = false;
     fp = stdout;
-    if (verbose > MUTE)
-      printf("  print memory\n");
-    fflush(stdout);
-  }
-  else if (!strcmp(filename, "stderr")) {
-    flagFile = false;
-    fp = stderr;
     if (verbose > MUTE)
       printf("  print memory\n");
     fflush(stdout);
