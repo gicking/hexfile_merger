@@ -1,12 +1,12 @@
 hexfile_merger
 -------------------
 
-Import files of various formats, manipulated them, and merge them to a single output file
+Import files of various formats, apply simple manipulations, and merge them to a single output file.
 
-`usage: hexfile_merger [options] with options`
+`usage: hexfile_merger with following options/commands:`
 
     -h/-help                            print this help
-    -v/verbose [level]                  set verbosity level 0..3 (default: 2)
+    -v/-verbose [level]                 set verbosity level 0..3 (default: 2)
     -import [infile [addr]]             import from file to image. For binary file (*.bin) add start address in hex
     -export [outfile]                   export image to file
     -print                              print image to console
@@ -22,7 +22,7 @@ Supported import formats:
   - Binary (*.bin) with an additional starting address
 
 Supported export formats:
-  - print to stdout (-p)
+  - print to stdout (-print)
   - Motorola S19 (*.s19)
   - ASCII table (*.txt) with 'hexAddr  hexValue'
   - Binary (*.bin) without starting address
@@ -33,7 +33,7 @@ intermediate exports only contain the merged content up to that point in time.
 
 Notes:
   - this tool is written in ANSI-C, it should be compatible with any platform supporting e.g. GCC
-  - buffer sizes are set to 10MByte. If this is insufficient, increase LENFILEBUF and LENIMAGEBUF in hexfile.h
+  - file and image buffers sizes are 10MByte. For larger buffers increase LENFILEBUF and LENIMAGEBUF in hexfile.h
 
 If you find any bugs or for feature requests, please drop me a note.
 
