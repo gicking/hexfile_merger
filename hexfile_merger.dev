@@ -1,7 +1,7 @@
 [Project]
 FileName=hexfile_merger.dev
 Name=hexfile_merger
-UnitCount=6
+UnitCount=7
 Type=1
 Ver=2
 ObjFiles=
@@ -26,8 +26,8 @@ UseCustomMakefile=0
 CustomMakefile=
 IncludeVersionInfo=0
 SupportXPThemes=0
-CompilerSet=3
-CompilerSettings=0000000100000000000000000
+CompilerSet=0
+CompilerSettings=00000000e0000000000000000
 LogOutput=
 LogOutputEnabled=0
 
@@ -61,16 +61,6 @@ AutoIncBuildNr=0
 SyncProduct=0
 
 [Unit4]
-FileName=globals.h
-CompileCpp=0
-Folder=
-Compile=1
-Link=1
-Priority=1000
-OverrideBuildCmd=0
-BuildCmd=
-
-[Unit5]
 FileName=misc.c
 CompileCpp=0
 Folder=
@@ -80,10 +70,20 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit7]
-FileName=bootloader.c
+[Unit5]
+FileName=misc.h
 CompileCpp=0
-Folder=hexfile_merger
+Folder=
+Compile=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit7]
+FileName=version.h
+CompileCpp=0
+Folder=
 Compile=1
 Link=1
 Priority=1000
@@ -241,7 +241,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit6]
-FileName=misc.h
+FileName=main.h
 CompileCpp=0
 Folder=
 Compile=1
