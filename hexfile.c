@@ -1,16 +1,16 @@
 /**
    \file hexfile.c
-   
+
    \author G. Icking-Konert
    \date 2018-12-14
    \version 0.2
-   
+
    \brief implementation of routines for HEX, S19 and table files
-   
-   implementation of routines for importing and exporting Motorola S19 and Intel HEX files, 
-   as well as plain ASCII tables.  
+
+   implementation of routines for importing and exporting Motorola S19 and Intel HEX files,
+   as well as plain ASCII tables.
    (format descriptions under http://en.wikipedia.org/wiki/SREC_(file_format) or
-   http://www.keil.com/support/docs/1584.htm). 
+   http://www.keil.com/support/docs/1584.htm).
 */
 
 // include files
@@ -27,55 +27,55 @@
 
 /**
    \fn char *get_line(char **buf, char *line)
-   
+
    \param[in]  buf        pointer to read from (is updated)
    \param[out] line       pointer to line read (has to be large anough)
-   
+
    read line (until LF, CR, or EOF) from RAM buffer and advance buffer pointer.
    memory for line has to be allocated externally
 */
 char *get_line(char **buf, char *line) {
-  
+
   char  *p = line;
-  
+
   // copy line
   while ((**buf!=10) && (**buf!=13) && (**buf!=0)) {
     *line = **buf;
     line++;
     (*buf)++;
   }
-  
+
   // skip CR + LF in buffer
   while ((**buf==10) || (**buf==13))
     (*buf)++;
-    
+
   // terminate line
   *line = '\0';
-  
+
   // check if data was copied
   if (p == line)
     return(NULL);
   else
     return(p);
-  
+
 } // get_line
 
-  
+
 
 /**
    \fn void load_file(const char *filename, char *fileBuf, uint32_t *lenFileBuf, uint8_t verbose)
-   
+
    \param[in]  filename     name of file to read
    \param[out] fileBuf      memory buffer containing file content
    \param[out] lenFileBuf   size of data [B] read from file
    \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
-   
+
    read file from file to memory buffer. Don't interpret (is done in separate routine)
 */
 void load_file(const char *filename, char *fileBuf, uint32_t *lenFileBuf, uint8_t verbose) {
 
   FILE      *fp;
-  
+
   // strip path from filename for readability
   #if defined(WIN32)
     const char *shortname = strrchr(filename, '\\');
@@ -95,7 +95,7 @@ void load_file(const char *filename, char *fileBuf, uint32_t *lenFileBuf, uint8_
   // open file to read
   if (!(fp = fopen(filename, "rb")))
     Error("Failed to open file %s", filename);
-     
+
   // get filesize
   fseek(fp, 0, SEEK_END);
   (*lenFileBuf) = ftell(fp);
@@ -110,7 +110,7 @@ void load_file(const char *filename, char *fileBuf, uint32_t *lenFileBuf, uint8_
 
   // read file to buffer
   fread(fileBuf, (*lenFileBuf), 1, fp);
-  
+
   // close file again
   fclose(fp);
 
@@ -134,23 +134,23 @@ void load_file(const char *filename, char *fileBuf, uint32_t *lenFileBuf, uint8_
 
 /**
    \fn void convert_s19(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose)
-   
+
    \param[in]  fileBuf      memory buffer to read from
    \param[in]  lenFileBuf   length of memory buffer
    \param[out] imageBuf     RAM image of file. HB!=0 indicates content
    \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
-   
-   convert memory buffer containing s19 hexfile to memory image. For description of 
+
+   convert memory buffer containing s19 hexfile to memory image. For description of
    Motorola S19 file format see http://en.wikipedia.org/wiki/SREC_(file_format)
 */
 void convert_s19(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose) {
-  
+
   char      line[1000], tmp[1000], *p;
   int       linecount, idx;
   uint8_t   type, len, chkRead, chkCalc;
-  uint32_t  addr, addrStart, addrStop;
+  uint64_t  addr, addrStart, addrStop;
   uint32_t  val, numData;
-  
+
   // print message
   if (verbose == INFORM)
     printf("  convert S19 ... ");
@@ -168,7 +168,7 @@ void convert_s19(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t
   addrStart = 0xFFFFFFFF;
   addrStop  = 0x00000000;
   while ((uint32_t) (p-fileBuf) < lenFileBuf) {
-  
+
     // get next line. On EOF terminate
     if (!get_line(&p, line))
       break;
@@ -176,40 +176,40 @@ void convert_s19(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t
     // increase line counter
     linecount++;
     chkCalc = 0x00;
-    
+
     // check 1st char (must be 'S')
     if (line[0] != 'S')
       Error("Line %d in Motorola S-record file: line does not start with 'S'", linecount);
-    
+
     // record type
     type = line[1]-48;
-    
+
     // skip if line contains no data
-    if ((type==0) || (type==8) || (type==9))
-      continue; 
-    
+    if ((type==0) || (type==7) || (type==8) || (type==9))
+      continue;
+
     // record length (address + data + checksum)
     sprintf(tmp,"0x00");
     strncpy(tmp+2, line+2, 2);
     sscanf(tmp, "%x", &val);
     len = val;
     chkCalc += val;              // increase checksum
-    
+
     // address (S1=16bit, S2=24bit, S3=32bit)
     addr = 0;
     for (int i=0; i<type+1; i++) {
-      sprintf(tmp,"0x00");
+	  sprintf(tmp,"0x00");
       tmp[2] = line[4+(i*2)];
       tmp[3] = line[5+(i*2)];
       sscanf(tmp, "%x", &val);
-      addr *= 256;
-      addr += val;    
+      addr *= (uint64_t) 256;
+      addr += (uint64_t) val;
       chkCalc += val;
-    } 
-    
+    }
+
     // check for buffer overflow
     if (addr > LENIMAGEBUF-1)
-      Error("Line %d in Motorola S-record file: buffer size exceeded (%dMB vs %dMB)", linecount, (int) (addr/1024L/1024L), (int) (LENIMAGEBUF/1024L/1024L));
+      Error("Line %d in Motorola S-record file: buffer address exceeded (%dMB vs %dMB)", linecount, (int) (addr/1024L/1024L), (int) (LENIMAGEBUF/1024L/1024L));
 
     // read record data
     idx=6+(type*2);                     // start at position 8, 10, or 12, depending on record type
@@ -223,7 +223,7 @@ void convert_s19(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t
       chkCalc += val;                   // increase checksum
       idx+=2;                           // advance 2 chars in line
     }
-       
+
     // for printout store min/max address in file
     if (addr       < addrStart)  addrStart = addr;
     if (addr+len-1 > addrStop)   addrStop  = addr+len-1;
@@ -238,7 +238,7 @@ void convert_s19(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t
     chkCalc ^= 0xFF;                 // invert checksum
     if (chkCalc != chkRead)
       Error("Line %d in Motorola S-record file: checksum error (0x%02x vs. 0x%02x)", linecount, chkRead, chkCalc);
-    
+
   } // while !EOF
 
   // print message
@@ -247,37 +247,37 @@ void convert_s19(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t
   }
   else if (verbose == CHATTY) {
     if (numData>2048)
-      printf("done (%1.1fkB in 0x%04x - 0x%04x)\n", (float) numData/1024.0, addrStart, addrStop);
+      printf("done (%1.1fkB in 0x%04lx - 0x%04lx)\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      printf("done (%dB in 0x%04x - 0x%04x)\n", numData, addrStart, addrStop);
+      printf("done (%dB in 0x%04lx - 0x%04lx)\n", numData, addrStart, addrStop);
     else
       printf("done, no data\n");
   }
   fflush(stdout);
-  
+
 } // convert_s19
 
-  
+
 
 /**
    \fn void convert_ihx(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose)
-   
+
    \param[in]  fileBuf      memory buffer to read from
    \param[in]  lenFileBuf   length of memory buffer
    \param[out] imageBuf     RAM image of file. HB!=0 indicates content
    \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
-   convert memory buffer containing intel hexfile to memory buffer. For description of 
+   convert memory buffer containing intel hexfile to memory buffer. For description of
    Intel hex file format see http://en.wikipedia.org/wiki/Intel_HEX
 */
 void convert_ihx(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose) {
-  
+
   char      line[1000], tmp[1000], *p;
   int       linecount, idx;
   uint8_t   type, len, chkRead, chkCalc;
-  uint32_t  addr, addrStart, addrStop;
+  uint64_t  addr, addrStart, addrStop;
+  uint64_t  addrOff, addrJumpStart;
   uint32_t  val, numData;
-  uint32_t  addrOff, addrJumpStart;
 
   // avoid compiler warning (variable not yet used). See https://stackoverflow.com/questions/3599160/unused-parameter-warnings-in-c
   (void) (addrJumpStart);
@@ -300,7 +300,7 @@ void convert_ihx(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t
   addrStop  = 0x00000000;
   addrOff = 0x00000000;
   while ((uint32_t) (p-fileBuf) < lenFileBuf) {
-  
+
     // get next line. On EOF terminate
     if (!get_line(&p, line))
       break;
@@ -308,18 +308,18 @@ void convert_ihx(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t
     // increase line counter
     linecount++;
     chkCalc = 0x00;
-    
+
     // check 1st char (must be ':')
     if (line[0] != ':')
       Error("Line %d in Intel hex file: line does not start with ':'", linecount);
-    
+
     // record length (address + data + checksum)
     sprintf(tmp,"0x00");
     strncpy(tmp+2, line+1, 2);
     sscanf(tmp, "%x", &val);
     len = val;
     chkCalc += len;              // increase checksum
-    
+
     // 16b address
     addr = 0;
     sprintf(tmp,"0x0000");
@@ -327,7 +327,7 @@ void convert_ihx(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t
     sscanf(tmp, "%x", &val);
     chkCalc += (uint8_t) (val >> 8);
     chkCalc += (uint8_t)  val;
-    addr = val + addrOff;         // add offset for >64kB addresses
+    addr = (uint64_t) val + addrOff;         // add offset for >64kB addresses
 
     // record type
     sprintf(tmp,"0x00");
@@ -335,10 +335,10 @@ void convert_ihx(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t
     sscanf(tmp, "%x", &val);
     type = val;
     chkCalc += type;              // increase checksum
-    
+
     // record contains data
     if (type==0) {
-      
+
       // check for buffer overflow
       if (addr > LENIMAGEBUF-1)
         Error("Line %d in Intel hex file: buffer size exceeded (%dMB vs %dMB)", linecount, (int) (addr/1024L/1024L), (int) (LENIMAGEBUF/1024L/1024L));
@@ -346,7 +346,7 @@ void convert_ihx(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t
       // for printout store min/max address in file
       if (addr < addrStart)  addrStart = addr;
       if (addr > addrStop)   addrStop  = addr;
-    
+
       // get data
       idx = 9;                            // start at index 9
       for (int i=0; i<len; i++) {
@@ -358,21 +358,21 @@ void convert_ihx(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t
         chkCalc += val;                   // increase checksum
         idx+=2;                           // advance 2 chars in line
       }
-      
+
     } // type==0
 
     // EOF indicator
     else if (type==1)
-      continue; 
+      continue;
 
     // extended segment addresses not yet supported
-    else if (type==2) 
+    else if (type==2)
       Error("Line %d in Intel hex file: extended segment address type 2 not supported", linecount);
-    
-    // start segment address (only relevant for 80x86 processors, ignore here) 
+
+    // start segment address (only relevant for 80x86 processors, ignore here)
     else if (type==3)
       continue;
-    
+
     // extended address (=upper 16b of address for following data records)
     else if (type==4) {
       idx = 13;                       // start at index 13
@@ -381,69 +381,69 @@ void convert_ihx(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t
       sscanf(tmp, "%x", &val);        // interpret as hex data
       chkCalc += (uint8_t) (val >> 8);
       chkCalc += (uint8_t)  val;
-      addrOff = val << 16;
+      addrOff = ((uint64_t) val) << 16;
     } // type==4
-    
+
     // start linear address records. Can be ignored, see http://www.keil.com/support/docs/1584/
     else if (type==5)
-      continue; 
-    
+      continue;
+
     // unsupported record type -> error
     else
       Error("Line %d in Intel hex file: unsupported type %d", linecount, type);
-    
-    
+
+
     // checksum
     sprintf(tmp,"0x00");
     strncpy(tmp+2, line+idx, 2);
     sscanf(tmp, "%x", &val);
     chkRead = val;
-    
+
     // assert checksum (0xFF xor (sum over all except record type))
     chkCalc = 255 - chkCalc + 1;                 // calculate 2-complement
     if (chkCalc != chkRead)
       Error("Line %d in Intel hex file: checksum error (read 0x%02x, calc 0x%02x)", linecount, chkRead, chkCalc);
-    
+
   } // while !EOF
-  
+
   // print message
   if (verbose == INFORM) {
     printf("done\n");
   }
   else if (verbose == CHATTY) {
     if (numData>2048)
-      printf("done (%1.1fkB in 0x%04x - 0x%04x)\n", (float) numData/1024.0, addrStart, addrStop);
+      printf("done (%1.1fkB in 0x%04lx - 0x%04lx)\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      printf("done (%dB in 0x%04x - 0x%04x)\n", numData, addrStart, addrStop);
+      printf("done (%dB in 0x%04lx - 0x%04lx)\n", numData, addrStart, addrStop);
     else
       printf("done, no data\n");
   }
   fflush(stdout);
-  
+
 } // convert_ihx
 
-  
+
 
 /**
    \fn void convert_txt(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose)
-   
+
    \param[in]  fileBuf      memory buffer to read from
    \param[in]  lenFileBuf   length of memory buffer
    \param[out] imageBuf     RAM image of file. HB!=0 indicates content
    \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
-   convert memory buffer containing plain table (address / value) to memory buffer. 
+   convert memory buffer containing plain table (address / value) to memory buffer.
    Address and value may be decimal (plain numberst) or hexadecimal (starting with '0x').
    Lines starting with '#' are ignored. No syntax check is performed.
 */
 void convert_txt(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose) {
-  
+
   char      line[1000], *p;
   int       linecount;
   char      sAddr[1000], sValue[1000];
-  uint32_t  addr, addrStart, addrStop;
+  uint64_t  addr, addrStart, addrStop;
   uint32_t  val, numData;
-  
+
   // print message
   if (verbose == INFORM)
     printf("  convert table ... ");
@@ -461,22 +461,22 @@ void convert_txt(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t
   addrStart = 0xFFFFFFFF;
   addrStop  = 0x00000000;
   while ((uint32_t) (p-fileBuf) < lenFileBuf) {
-  
+
     // get next line. On EOF terminate
     if (!get_line(&p, line))
       break;
 
     // increase line counter
     linecount++;
-    
+
     // if line starts with '#' ignore as comment
     if (line[0] == '#')
       continue;
 
-    // get address and value as string 
+    // get address and value as string
     sscanf(line, "%s %s", sAddr, sValue);
-    
-    
+
+
     //////////
     // extract address
     //////////
@@ -491,10 +491,10 @@ void convert_txt(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t
       }
 
       // get address
-      sscanf(sAddr, "%x", &addr);
+      sscanf(sAddr, "%lx", &addr);
 
     } // address is in hex format
-    
+
     // address string is in decimal format
     else {
 
@@ -505,15 +505,15 @@ void convert_txt(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t
       }
 
       // get address
-      sscanf(sAddr, "%d", &addr);
+      sscanf(sAddr, "%ld", &addr);
 
     } // extract address
-    
-    
+
+
     //////////
     // extract value
     //////////
-    
+
     // value string is in hex format (starts with '0x')
     if ((sValue[0] == '0') && ((sValue[1] == 'x') || (sValue[1] == 'X'))) {
 
@@ -527,7 +527,7 @@ void convert_txt(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t
       sscanf(sValue, "%x", &val);
 
     } // address is in hex format
-    
+
     // address string is in decimal format
     else {
 
@@ -541,42 +541,42 @@ void convert_txt(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t
       sscanf(sValue, "%d", &val);
 
     } // extract value
-    
+
     // check for buffer overflow
     if (addr > LENIMAGEBUF-1)
       Error("Line %d in table file: buffer size exceeded (%dMB vs %dMB)", linecount, (int) (addr/1024L/1024L), (int) (LENIMAGEBUF/1024L/1024L));
-       
+
     // for printout store min/max address in file
     if (addr < addrStart)  addrStart = addr;
     if (addr > addrStop)   addrStop  = addr;
 
     // store data byte in buffer and set high byte
-    imageBuf[addr] = (uint16_t) val | 0xFF00;   
-    numData++; 
-    
+    imageBuf[addr] = (uint16_t) val | 0xFF00;
+    numData++;
+
   } // while !EOF
- 
+
   // print message
   if (verbose == INFORM) {
     printf("done\n");
   }
   else if (verbose == CHATTY) {
     if (numData>2048)
-      printf("done (%1.1fkB in 0x%04x - 0x%04x)\n", (float) numData/1024.0, addrStart, addrStop);
+      printf("done (%1.1fkB in 0x%04lx - 0x%04lx)\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      printf("done (%dB in 0x%04x - 0x%04x)\n", numData, addrStart, addrStop);
+      printf("done (%dB in 0x%04lx - 0x%04lx)\n", numData, addrStart, addrStop);
     else
       printf("done, no data\n");
   }
   fflush(stdout);
- 
+
 } // convert_txt
 
-  
+
 
 /**
    \fn convert_bin(char *fileBuf, uint32_t lenFileBuf, uint32_t addrStart, uint16_t *imageBuf, uint8_t verbose)
-   
+
    \param[in]  fileBuf      memory buffer to read from
    \param[in]  lenFileBuf   length of memory buffer
    \param[in]  addrStart    address offset for binary import
@@ -587,9 +587,9 @@ void convert_txt(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint8_t
    just data. Therefor a starting address must also be provided.
 */
 void convert_bin(char *fileBuf, uint32_t lenFileBuf, uint32_t addrStart, uint16_t *imageBuf, uint8_t verbose) {
-  
+
   uint32_t  addrStop, numData;
-  
+
   // print message
   if (verbose == INFORM)
     printf("  convert binary ... ");
@@ -626,11 +626,11 @@ void convert_bin(char *fileBuf, uint32_t lenFileBuf, uint32_t addrStart, uint16_
 
 } // convert_bin
 
-  
+
 
 /**
    \fn get_image_size(uint16_t *imageBuf, uint32_t scanStart, uint32_t scanStop, uint32_t *addrStart, uint32_t *addrStop, uint32_t *numData)
-   
+
    \param[in]  imageBuf     memory image containing data. HB!=0 indicates content
    \param[in]  scanStart    start address for scan
    \param[in]  scanStop     end address for scan
@@ -642,7 +642,7 @@ void convert_bin(char *fileBuf, uint32_t lenFileBuf, uint32_t addrStart, uint16_
    Get fist and last address and number of bytes in memory image. Defined data is indicated by HB!=0x00
 */
 void get_image_size(uint16_t *imageBuf, uint32_t scanStart, uint32_t scanStop, uint32_t *addrStart, uint32_t *addrStop, uint32_t *numData) {
-  
+
   // simple checks of scan window
   if (scanStart > scanStop)
     Error("scan start address 0x%04x higher than end address 0x%04x", scanStart, scanStop);
@@ -656,8 +656,8 @@ void get_image_size(uint16_t *imageBuf, uint32_t scanStart, uint32_t scanStop, u
   *addrStop  = 0x00000000;
   *numData   = 0;
   for (uint32_t addr=scanStart; addr<=scanStop; addr++) {
-    
-    // entry contains data (HB!=0x00) 
+
+    // entry contains data (HB!=0x00)
     if (imageBuf[addr] & 0xFF00) {
       if (addr < *addrStart) *addrStart = addr;
       if (addr > *addrStop)  *addrStop  = addr;
@@ -668,11 +668,11 @@ void get_image_size(uint16_t *imageBuf, uint32_t scanStart, uint32_t scanStop, u
 
 } // get_image_size
 
-  
+
 
 /**
    \fn clip_image(uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint8_t verbose)
-   
+
    \param      imageBuf     memory image containing data. HB!=0 indicates content
    \param[in]  addrStart    starting address of clipping window
    \param[in]  addrStop     topmost address of clipping window
@@ -681,7 +681,7 @@ void get_image_size(uint16_t *imageBuf, uint32_t scanStart, uint32_t scanStop, u
    Clip memory image to specified window, i.e. reset all data outside specified window to "undefined" (HB=0x00)
 */
 void clip_image(uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint8_t verbose) {
-  
+
   uint32_t  numCleared;
 
   // print message
@@ -690,7 +690,7 @@ void clip_image(uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint8
   else if (verbose == CHATTY)
     printf("  clip memory image ... ");
   fflush(stdout);
-  
+
   // simple checks of scan window
   if (addrStart > addrStop)
     Error("start address 0x%04x higher than end address 0x%04x", addrStart, addrStop);
@@ -722,14 +722,14 @@ void clip_image(uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint8
       printf("done, no data cleared\n");
   }
   fflush(stdout);
- 
+
 } // clip_image
 
-  
+
 
 /**
    \fn clear_image(uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint8_t verbose)
-   
+
    \param      imageBuf     memory image containing data. HB!=0 indicates content
    \param[in]  addrStart    starting address of section to clear
    \param[in]  addrStop     topmost address of section to clear
@@ -738,7 +738,7 @@ void clip_image(uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint8
    Clear data in memory image to "undefined", i.e. reset all data inside specified window to "undefined" (HB=0x00)
 */
 void clear_image(uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint8_t verbose) {
-  
+
   uint32_t  numCleared;
 
   // print message
@@ -747,7 +747,7 @@ void clear_image(uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint
   else if (verbose == CHATTY)
     printf("  clear memory image ... ");
   fflush(stdout);
-  
+
   // simple checks of scan window
   if (addrStart > addrStop)
     Error("start address 0x%04x higher than end address 0x%04x", addrStart, addrStop);
@@ -779,14 +779,14 @@ void clear_image(uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint
       printf("done, no data cleared\n");
   }
   fflush(stdout);
- 
+
 } // clear_image
 
-  
+
 
 /**
    \fn copy_image(uint16_t *imageBuf, uint32_t sourceStart, uint32_t sourceStop, uint32_t targetStart, uint8_t verbose)
-   
+
    \param      imageBuf     memory image containing data. HB!=0 indicates content
    \param[in]  sourceStart  starting address to copy from
    \param[in]  sourceStart  last address to copy from
@@ -796,14 +796,14 @@ void clear_image(uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint
    Copy data section within image to new address. Data at old address is maintained (if sections don't overlap).
 */
 void copy_image(uint16_t *imageBuf, uint32_t sourceStart, uint32_t sourceStop, uint32_t targetStart, uint8_t verbose) {
-  
+
   // print message
   if (verbose == INFORM)
     printf("  copy data ... ");
   else if (verbose == CHATTY)
     printf("  copy image data ... ");
   fflush(stdout);
-  
+
   // simple checks of scan window
   if (sourceStart > sourceStop)
     Error("source start address 0x%04x higher than end address 0x%04x", sourceStart, sourceStop);
@@ -826,7 +826,7 @@ void copy_image(uint16_t *imageBuf, uint32_t sourceStart, uint32_t sourceStop, u
 
   // copy data within image
   memcpy((void*) &(imageBuf[targetStart]), (void*) &(imageBuf[sourceStart]), (sourceStop-sourceStart+1)*sizeof(*imageBuf));
-  
+
 
   // print message
   if (verbose == INFORM) {
@@ -841,14 +841,14 @@ void copy_image(uint16_t *imageBuf, uint32_t sourceStart, uint32_t sourceStop, u
       printf("done, no data copied\n");
   }
   fflush(stdout);
- 
+
 } // copy_image
 
-  
+
 
 /**
    \fn move_image(uint16_t *imageBuf, uint32_t sourceStart, uint32_t sourceStop, uint32_t targetStart, uint8_t verbose)
-   
+
    \param      imageBuf     memory image containing data. HB!=0 indicates content
    \param[in]  sourceStart  starting address to copy from
    \param[in]  sourceStart  last address to copy from
@@ -858,7 +858,7 @@ void copy_image(uint16_t *imageBuf, uint32_t sourceStart, uint32_t sourceStop, u
    Move data section within image to new address. Data at old address is cleared.
 */
 void move_image(uint16_t *imageBuf, uint32_t sourceStart, uint32_t sourceStop, uint32_t targetStart, uint8_t verbose) {
-  
+
   uint16_t  *tmpImageBuf;   // temporary buffer
 
   // print message
@@ -867,7 +867,7 @@ void move_image(uint16_t *imageBuf, uint32_t sourceStart, uint32_t sourceStop, u
   else if (verbose == CHATTY)
     printf("  move image data ... ");
   fflush(stdout);
-  
+
   // simple checks of scan window
   if (sourceStart > sourceStop)
     Error("source start address 0x%04x higher than end address 0x%04x", sourceStart, sourceStop);
@@ -916,30 +916,30 @@ void move_image(uint16_t *imageBuf, uint32_t sourceStart, uint32_t sourceStop, u
       printf("done, no data copied\n");
   }
   fflush(stdout);
- 
+
 } // move_image
 
-  
+
 
 /**
    \fn void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose)
-   
+
    \param[in]  filename    name of output file
    \param[in]  imageBuf    memory image. HB!=0 indicates content. Index 0 corresponds to addrStart
    \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
-   export RAM image to file in s19 hexfile format. For description of 
+   export RAM image to file in s19 hexfile format. For description of
    Motorola S19 file format see http://en.wikipedia.org/wiki/SREC_(file_format)
 */
 void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   FILE      *fp;               // file pointer
-  const int maxLine = 32;      // max. length of data line 
+  const int maxLine = 32;      // max. length of data line
   uint8_t   data;              // value to store
   uint32_t  chk;               // checksum
   uint32_t  addrStart, addrStop, numData;  // image data range
   char      *shortname;        // filename w/o path
-    
+
   // strip path from filename for readability
   #if defined(WIN32)
     shortname = strrchr(filename, '\\');
@@ -970,7 +970,7 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // get min/max addresses and number of bytes (HB!=0x00) in image
   get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
-  
+
   // store in lines of 32B
   uint32_t addr = addrStart;
   while (addr <= addrStop) {
@@ -984,8 +984,8 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     if (addr > addrStop)
       break;
 
-    // set length of next data block: max 128B and align with 128 for speed (see UM0560 section 3.4)  
-    int lenBlock = 1; 
+    // set length of next data block: max 128B and align with 128 for speed (see UM0560 section 3.4)
+    int lenBlock = 1;
     while ((lenBlock < maxLine) && ((addr+lenBlock) <= addrStop) && (imageBuf[addr+lenBlock] & 0xFF00) && ((addr+lenBlock) % maxLine)) {
       lenBlock++;
     }
@@ -1020,7 +1020,7 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     // go to next potential block
     addr += lenBlock;
 
-  } // loop over address range 
+  } // loop over address range
 
   // attach generic EOF line
   fprintf(fp, "S903FFFFFE\n");
@@ -1044,12 +1044,12 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   fflush(stdout);
 
 } // export_s19
-  
+
 
 
 /**
    \fn void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose)
-   
+
    \param[in]  filename    name of output file or stdout ('console')
    \param[in]  imageBuf    memory image. HB!=0 indicates content. Index 0 corresponds to addrStart
    \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
@@ -1062,7 +1062,7 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   uint32_t  addrStart, addrStop, numData;  // image data range
   char      *shortname;        // filename w/o path
   bool      flagFile = true;   // output to file or console?
-  
+
   // output to stdout
   if (!strcmp(filename, "console")) {
     flagFile = false;
@@ -1075,7 +1075,7 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   // output to file
   else {
     flagFile = true;
-  
+
     // strip path from filename for readability
     #if defined(WIN32)
       shortname = strrchr(filename, '\\');
@@ -1101,7 +1101,7 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     if (!fp)
       Error("Failed to create file %s", filename);
 
-  } 
+  }
 
   // output header
   if (flagFile)
@@ -1128,7 +1128,7 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     fclose(fp);
   else
     fprintf(fp,"  ");
-  
+
   // print message
   if ((verbose == SILENT) || (verbose == INFORM)) {
     printf("done\n");
@@ -1144,12 +1144,12 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   fflush(stdout);
 
 } // export_txt
-  
+
 
 
 /**
    \fn void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose)
-   
+
    \param[in]  filename    name of output file
    \param[in]  imageBuf    memory image. HB!=0 indicates content
    \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
@@ -1163,7 +1163,7 @@ void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   uint32_t  addrStart, addrStop, numData;  // address range to consider
   uint32_t  countByte;         // number of actually exported bytes
   uint8_t   val;
-  
+
   // strip path from filename for readability
   #if defined(WIN32)
     const char *shortname = strrchr(filename, '\\');
@@ -1191,7 +1191,7 @@ void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // get address range containing data (HB!=0x00)
   get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
-  
+
   // store every value in address range. Undefined values are set to 0x00
   countByte = 0;
   for (uint32_t addr=addrStart; addr<=addrStop; addr++) {
