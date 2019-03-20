@@ -347,7 +347,7 @@ int main(int argc, char ** argv) {
     else if (!strcmp(argv[i], "-print")) {
   
       // print to stdout
-      export_txt("stdout", imageBuf, verbose);
+      export_txt("console", imageBuf, verbose);
 
     } // export file/print
       
