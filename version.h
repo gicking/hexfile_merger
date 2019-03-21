@@ -19,7 +19,7 @@
 #define _SW_VERSION_H_
 
 /// 16b SW version identifier 
-#define VERSION     ((1<<14) | (3<<6) | (0<<1) | 0)     // -> v1.3.0b
+#define VERSION     ((1<<14) | (4<<6) | (0<<1) | 0)     // -> v1.4.0b
 
 #endif // _SW_VERSION_H_
 
@@ -27,6 +27,13 @@
 /********************
 
 Revision History
+----------------
+
+1.4 (2019-03-21): 
+  - added '-fill' command
+  - changed '-clear' to '-cut' for clarity (data is removed, not cleared)
+  - added support for 64-bit address range
+  
 ----------------
 
 1.3 (2018-12-24): 
