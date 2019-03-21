@@ -142,6 +142,17 @@ int main(int argc, char ** argv) {
     } // print
       
 
+    // skip memory filling. Just check parameter number
+    else if (!strcmp(argv[i], "-fill")) {
+      if (i+3<argc)
+        i+=3;
+      else {
+        printHelp = true;
+        break;
+      }
+    } // fill
+      
+
     // skip memory clipping. Just check parameter number
     else if (!strcmp(argv[i], "-clip")) {
       if (i+2<argc)
@@ -153,15 +164,15 @@ int main(int argc, char ** argv) {
     } // clip
       
 
-    // skip memory clearing. Just check parameter number
-    else if (!strcmp(argv[i], "-clear")) {
+    // skip cutting out memory range. Just check parameter number
+    else if (!strcmp(argv[i], "-cut")) {
       if (i+2<argc)
         i+=2;
       else {
         printHelp = true;
         break;
       }
-    } // clear
+    } // cut
       
 
     // skip memory copy. Just check parameter number
@@ -205,13 +216,14 @@ int main(int argc, char ** argv) {
     printf("usage: %s with following options/commands:\n", appname);
     printf("    -h/-help                            print this help\n");
     printf("    -v/-verbose [level]                 set verbosity level 0..3 (default: 2)\n");
-    printf("    -import [infile [addr]]             import from file to image. For binary file (*.bin) add start address in hex\n");
+    printf("    -import [infile [addr]]             import from file to image. For binary file (*.bin) provide start address (in hex)\n");
     printf("    -export [outfile]                   export image to file\n");
     printf("    -print                              print image to console\n");
-    printf("    -clip [addrStart addrStop]          clip image to specified range (in hex)\n");
-    printf("    -clear [addrStart addrStop]         clear image data in specified range (in hex)\n");
-    printf("    -copy [fromStart fromStop toStart]  copy data within image (in hex). Keep old data\n");
-    printf("    -move [fromStart fromStop toStart]  move data within image (in hex). Unset old data\n");
+    printf("    -fill [addrStart addrStop val]      fill specified range with fixed value (addr & val in hex)\n");
+    printf("    -clip [addrStart addrStop]          clip image to specified range (addr in hex)\n");
+    printf("    -cut  [addrStart addrStop]          cut specified data range from image (addr in hex)\n");
+    printf("    -copy [fromStart fromStop toStart]  copy data within image (addr in hex). Keep old data\n");
+    printf("    -move [fromStart fromStop toStart]  move data within image (addr in hex). Unset old data\n");
     printf("\n");
     printf("Supported import formats:\n");
     printf("  - Motorola S19 (*.s19), see https://en.wikipedia.org/wiki/SREC_(file_format)\n");
@@ -268,8 +280,8 @@ int main(int argc, char ** argv) {
       // intermediate variables
       char      infile[STRLEN]="";     // name of input file
       char      *fileBuf;              // RAM buffer for input file
-      uint32_t  lenFile;               // length of file in fileBuf
-      uint32_t  addrStart;             // address offset for binary file
+      uint64_t  lenFile;               // length of file in fileBuf
+      uint64_t  addrStart;             // address offset for binary file
 
       // allocate intermediate buffer (>1MByte requires dynamic allocation)
       if (!(fileBuf = malloc(LENFILEBUF * sizeof(*fileBuf))))
@@ -281,7 +293,7 @@ int main(int argc, char ** argv) {
       // for binary file also get starting address
       if (strstr(infile, ".bin") != NULL) {
         strncpy(tmp, argv[++i], STRLEN-1);
-        sscanf(tmp, "%x", &addrStart);
+        sscanf(tmp, "%" SCNx64, &addrStart);
       }
 
       // import file into string buffer (no interpretation, yet)
@@ -302,7 +314,7 @@ int main(int argc, char ** argv) {
       // debug
       #if defined(DEBUG)
       { 
-        uint32_t addr, addrStart, addrStop, numData;
+        uint64_t addr, addrStart, addrStop, numData;
         get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
         printf("\n\n");
         printf("addr: 0x%04X..0x%04X   %d\n", addrStart, addrStop, numData);
@@ -352,13 +364,28 @@ int main(int argc, char ** argv) {
     } // export file/print
       
 
+    // fill memory range with fixed value
+    else if (!strcmp(argv[i], "-fill")) {
+
+      // get start and stop adress of address window, and value to fill with
+      uint64_t  addrStart, addrStop, value;
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &addrStart);
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &addrStop);
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &value);
+
+      // fill specified memory range
+      fill_image(imageBuf, addrStart, addrStop, (uint8_t) value, verbose);
+
+    } // fill memory range
+      
+
     // clip memory image. Set values outside given window to unset
     else if (!strcmp(argv[i], "-clip")) {
 
       // get start and stop adress of address window
-      uint32_t  addrStart, addrStop;
-      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &addrStart);
-      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &addrStop);
+      uint64_t  addrStart, addrStop;
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &addrStart);
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &addrStop);
 
       // clear all data outside specified window
       clip_image(imageBuf, addrStart, addrStop, verbose);
@@ -366,28 +393,28 @@ int main(int argc, char ** argv) {
     } // clip memory image
       
 
-    // clear data in memory image. Set values within given window to "undefined"
-    else if (!strcmp(argv[i], "-clear")) {
+    // cut data range from memory image. Set values within given window to "undefined"
+    else if (!strcmp(argv[i], "-cut")) {
 
       // get start and stop adress of address window
-      uint32_t  addrStart, addrStop;
-      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &addrStart);
-      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &addrStop);
+      uint64_t  addrStart, addrStop;
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &addrStart);
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &addrStop);
 
-      // clear all data inside specified window
-      clear_image(imageBuf, addrStart, addrStop, verbose);
+      // cut all data inside specified window
+      cut_image(imageBuf, addrStart, addrStop, verbose);
 
-    } // clear data in memory image
+    } // cut data range from memory image
       
 
     // copy data within in memory image
     else if (!strcmp(argv[i], "-copy")) {
 
       // get start and stop adress of address window
-      uint32_t  sourceStart, sourceStop, targetStart;
-      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &sourceStart);
-      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &sourceStop);
-      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &targetStart);
+      uint64_t  sourceStart, sourceStop, targetStart;
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &sourceStart);
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &sourceStop);
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &targetStart);
 
       // clear all data inside specified window
       copy_image(imageBuf, sourceStart, sourceStop, targetStart, verbose);
@@ -399,10 +426,10 @@ int main(int argc, char ** argv) {
     else if (!strcmp(argv[i], "-move")) {
 
       // get start and stop adress of address window
-      uint32_t  sourceStart, sourceStop, targetStart;
-      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &sourceStart);
-      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &sourceStop);
-      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%x", &targetStart);
+      uint64_t  sourceStart, sourceStop, targetStart;
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &sourceStart);
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &sourceStop);
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &targetStart);
 
       // clear all data inside specified window
       move_image(imageBuf, sourceStart, sourceStop, targetStart, verbose);
