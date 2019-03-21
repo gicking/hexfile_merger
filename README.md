@@ -7,13 +7,14 @@ Import files of various formats, apply simple manipulations, and merge them to a
 
     -h/-help                            print this help
     -v/-verbose [level]                 set verbosity level 0..3 (default: 2)
-    -import [infile [addr]]             import from file to image. For binary file (*.bin) add start address in hex
+    -import [infile [addr]]             import from file to image. For binary file (*.bin) provide start address (in hex)
     -export [outfile]                   export image to file
     -print                              print image to console
-    -clip [addrStart addrStop]          clip image to specified range (in hex)
-    -clear [addrStart addrStop]         clear image data in specified range (in hex)
-    -copy [fromStart fromStop toStart]  copy data within image (in hex). Keep old data
-    -move [fromStart fromStop toStart]  move data within image (in hex). Unset old data
+    -fill [addrStart addrStop val]      fill specified range with fixed value (addr & val in hex)
+    -clip [addrStart addrStop]          clip image to specified range (addr in hex)
+    -cut  [addrStart addrStop]          cut specified data range from image (addr in hex)
+    -copy [fromStart fromStop toStart]  copy data within image (addr in hex). Keep old data
+    -move [fromStart fromStop toStart]  move data within image (addr in hex). Unset old data
 
 Supported import formats:
   - Motorola S19 (*.s19), for a description see https://en.wikipedia.org/wiki/SREC_(file_format)
@@ -43,6 +44,13 @@ Georg
 ====================================
 
 # Revision History
+
+1.4 (2019-03-21): 
+  - added '-fill' command
+  - changed '-clear' to '-cut' for clarity (data is removed, not cleared)
+  - added support for 64-bit address range
+  
+----------------
 
 1.3 (2018-12-24): 
   - changed commandline keywords (became too complex)
