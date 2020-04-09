@@ -250,11 +250,11 @@ void convert_s19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%04lx - 0x%04lx)\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     else if (numData>1024)
-      printf("done (%1.1fkB in 0x%04lx - 0x%04lx)\n", (float) numData/1024.0, addrStart, addrStop);
+      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      printf("done (%dB in 0x%04lx - 0x%04lx)\n", (int) numData, addrStart, addrStop);
+      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
       printf("done, no data\n");
   }
@@ -417,11 +417,11 @@ void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%04lx - 0x%04lx)\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     else if (numData>1024)
-      printf("done (%1.1fkB in 0x%04lx - 0x%04lx)\n", (float) numData/1024.0, addrStart, addrStop);
+      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      printf("done (%dB in 0x%04lx - 0x%04lx)\n", (int) numData, addrStart, addrStop);
+      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
       printf("done, no data\n");
   }
@@ -513,7 +513,7 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
       // get address
       sscanf(sAddr, "%" SCNu64, &addr);
-      
+
 
     } // extract address
 
@@ -570,11 +570,11 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%04lx - 0x%04lx)\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     else if (numData>1024)
-      printf("done (%1.1fkB in 0x%04lx - 0x%04lx)\n", (float) numData/1024.0, addrStart, addrStop);
+      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      printf("done (%dB in 0x%04lx - 0x%04lx)\n", (int) numData, addrStart, addrStop);
+      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
       printf("done, no data\n");
   }
@@ -626,11 +626,11 @@ void convert_bin(char *fileBuf, uint64_t lenFileBuf, uint64_t addrStart, uint16_
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%04lx - 0x%04lx)\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     else if (numData>1024)
-      printf("done (%1.1fkB in 0x%04lx - 0x%04lx)\n", (float) numData/1024.0, addrStart, addrStop);
+      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      printf("done (%dB in 0x%04lx - 0x%04lx)\n", (int) numData, addrStart, addrStop);
+      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
       printf("done, no data\n");
   }
@@ -656,11 +656,11 @@ void get_image_size(uint16_t *imageBuf, uint64_t scanStart, uint64_t scanStop, u
 
   // simple checks of scan window
   if (scanStart > scanStop)
-    Error("scan start address 0x%04lx higher than end address 0x%04lx", scanStart, scanStop);
+    Error("scan start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, scanStart, scanStop);
   if (scanStart > LENIMAGEBUF)
-    Error("scan start address 0x%04lx exceeds buffer size 0x%04lx", scanStart, LENIMAGEBUF);
+    Error("scan start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, scanStart, LENIMAGEBUF);
   if (scanStop > LENIMAGEBUF)
-    Error("scan end address 0x%04lx exceeds buffer size 0x%04lx", scanStop, LENIMAGEBUF);
+    Error("scan end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, scanStop, LENIMAGEBUF);
 
   // loop though image and check for defined data (HB!=0x00)
   *addrStart = 0xFFFFFFFFFFFFFFFF;
@@ -683,7 +683,7 @@ void get_image_size(uint16_t *imageBuf, uint64_t scanStart, uint64_t scanStop, u
 
 /**
    \fn void fill_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t value, uint8_t verbose)
-   
+
    \param      imageBuf     memory image containing data. HB!=0 indicates content
    \param[in]  addrStart    starting address of filling window
    \param[in]  addrStop     topmost address of filling window
@@ -702,14 +702,14 @@ void fill_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
   else if (verbose == CHATTY)
     printf("  fill memory image ... ");
   fflush(stdout);
-  
+
   // simple checks of scan window
   if (addrStart > addrStop)
-    Error("start address 0x%04lx higher than end address 0x%04lx", addrStart, addrStop);
+    Error("start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
   if (addrStart > (uint64_t) LENIMAGEBUF)
-    Error("start address 0x%04lx exceeds buffer size 0x%04lx", addrStart, LENIMAGEBUF);
+    Error("start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStart, LENIMAGEBUF);
   if (addrStop > (uint64_t) LENIMAGEBUF)
-    Error("end address 0x%04lx exceeds buffer size 0x%04lx", addrStop, LENIMAGEBUF);
+    Error("end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStop, LENIMAGEBUF);
 
   // loop over memory image and clear all data outside specified clipping window
   numFilled = 0;
@@ -724,11 +724,11 @@ void fill_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
   }
   else if (verbose == CHATTY) {
     if (numFilled>1024*1024)
-      printf("done, filled %1.1fMB with 0x%02x within 0x%04lx - 0x%04lx\n", (float) numFilled/1024.0/1024.0, value, addrStart, addrStop);
+      printf("done, filled %1.1fMB with 0x%02x within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numFilled/1024.0/1024.0, value, addrStart, addrStop);
     else if (numFilled>1024)
-      printf("done, filled %1.1fkB with 0x%02x within 0x%04lx - 0x%04lx\n", (float) numFilled/1024.0, value, addrStart, addrStop);
+      printf("done, filled %1.1fkB with 0x%02x within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numFilled/1024.0, value, addrStart, addrStop);
     else if (numFilled>0)
-      printf("done, filled %dB with 0x%02x within 0x%04lx - 0x%04lx\n", (int) numFilled, value, addrStart, addrStop);
+      printf("done, filled %dB with 0x%02x within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (int) numFilled, value, addrStart, addrStop);
     else
       printf("done, no data filled\n");
   }
@@ -761,11 +761,11 @@ void clip_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
 
   // simple checks of scan window
   if (addrStart > addrStop)
-    Error("start address 0x%04lx higher than end address 0x%04lx", addrStart, addrStop);
+    Error("start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
   if (addrStart > (uint64_t) LENIMAGEBUF)
-    Error("start address 0x%04lx exceeds buffer size 0x%04lx", addrStart, LENIMAGEBUF);
+    Error("start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStart, LENIMAGEBUF);
   if (addrStop > (uint64_t) LENIMAGEBUF)
-    Error("end address 0x%04lx exceeds buffer size 0x%04lx", addrStop, LENIMAGEBUF);
+    Error("end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStop, LENIMAGEBUF);
 
   // loop over memory image and clear all data outside specified clipping window
   numCleared = 0;
@@ -783,11 +783,11 @@ void clip_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
   }
   else if (verbose == CHATTY) {
     if (numCleared>1024*1024)
-      printf("done, clipped %1.1fMB outside 0x%04lx - 0x%04lx\n", (float) numCleared/1024.0/1024.0, addrStart, addrStop);
+      printf("done, clipped %1.1fMB outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0/1024.0, addrStart, addrStop);
     else if (numCleared>1024)
-      printf("done, clipped %1.1fkB outside 0x%04lx - 0x%04lx\n", (float) numCleared/1024.0, addrStart, addrStop);
+      printf("done, clipped %1.1fkB outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0, addrStart, addrStop);
     else if (numCleared>0)
-      printf("done, clipped %ldB outside 0x%04lx - 0x%04lx\n", numCleared, addrStart, addrStop);
+      printf("done, clipped %" PRId64 "B outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", numCleared, addrStart, addrStop);
     else
       printf("done, no data cleared\n");
   }
@@ -820,11 +820,11 @@ void cut_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_
 
   // simple checks of scan window
   if (addrStart > addrStop)
-    Error("start address 0x%04lx higher than end address 0x%04lx", addrStart, addrStop);
+    Error("start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
   if (addrStart > (uint64_t) LENIMAGEBUF)
-    Error("start address 0x%04lx exceeds buffer size 0x%04lx", addrStart, LENIMAGEBUF);
+    Error("start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStart, LENIMAGEBUF);
   if (addrStop > (uint64_t) LENIMAGEBUF)
-    Error("end address 0x%04lx exceeds buffer size 0x%04lx", addrStop, LENIMAGEBUF);
+    Error("end address 0x%" PRIx64 " exceeds buffer size 0x" PRIx64, addrStop, LENIMAGEBUF);
 
   // loop over memory image and clear all data inside specified window
   numCleared = 0;
@@ -842,11 +842,11 @@ void cut_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_
   }
   else if (verbose == CHATTY) {
     if (numCleared>1024*1024)
-      printf("done, cut %1.1fMB within 0x%04lx - 0x%04lx\n", (float) numCleared/1024.0/1024.0, addrStart, addrStop);
+      printf("done, cut %1.1fMB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0/1024.0, addrStart, addrStop);
     else if (numCleared>1024)
-      printf("done, cut %1.1fkB within 0x%04lx - 0x%04lx\n", (float) numCleared/1024.0, addrStart, addrStop);
+      printf("done, cut %1.1fkB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0, addrStart, addrStop);
     else if (numCleared>0)
-      printf("done, cut %ldB within 0x%04lx - 0x%04lx\n", numCleared, addrStart, addrStop);
+      printf("done, cut %" PRId64 "B within 0x%" PRIx64 " - 0x%" PRIx64 "\n", numCleared, addrStart, addrStop);
     else
       printf("done, no data cut\n");
   }
@@ -880,15 +880,15 @@ void copy_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
 
   // simple checks of scan window
   if (sourceStart > sourceStop)
-    Error("source start address 0x%04lx higher than end address 0x%04lx", sourceStart, sourceStop);
+    Error("source start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, sourceStart, sourceStop);
   if (sourceStart > (uint64_t) LENIMAGEBUF)
-    Error("source start address 0x%04lx exceeds buffer size 0x%04lx", sourceStart, LENIMAGEBUF);
+    Error("source start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, sourceStart, LENIMAGEBUF);
   if (sourceStop > (uint64_t) LENIMAGEBUF)
-    Error("source end address 0x%04lx exceeds buffer size 0x%04lx", sourceStop, LENIMAGEBUF);
+    Error("source end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, sourceStop, LENIMAGEBUF);
   if (destinationStart > (uint64_t) LENIMAGEBUF)
-    Error("destination start address 0x%04lx exceeds buffer size 0x%04lx", destinationStart, LENIMAGEBUF);
+    Error("destination start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, destinationStart, LENIMAGEBUF);
   if (destinationStart+(sourceStop-sourceStart+1) > (uint64_t) LENIMAGEBUF)
-    Error("destination end address 0x%04lx exceeds buffer size 0x%04lx", destinationStart+(sourceStop-sourceStart+1), LENIMAGEBUF);
+    Error("destination end address 0x%" PRIx64 " exceeds buffer size 0x" PRIx64, destinationStart+(sourceStop-sourceStart+1), LENIMAGEBUF);
 
   // get number of data to copy (HB!=0x00)
   numCopied = 0;
@@ -896,7 +896,7 @@ void copy_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
     if (imageBuf[i] & 0xFF00)
       numCopied++;
   }
-  
+
   // copy data within image
   memcpy((void*) &(imageBuf[destinationStart]), (void*) &(imageBuf[sourceStart]), (sourceStop-sourceStart+1)*sizeof(*imageBuf));
 
@@ -907,11 +907,11 @@ void copy_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
   }
   else if (verbose == CHATTY) {
     if (numCopied>1024*1024)
-      printf("done, copied %1.1fMB from 0x%04lx - 0x%04lx to 0x%04lx\n", (float) numCopied/1024.0/1024.0, sourceStart, sourceStop, destinationStart);
+      printf("done, copied %1.1fMB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numCopied/1024.0/1024.0, sourceStart, sourceStop, destinationStart);
     else if (numCopied>1024)
-      printf("done, copied %1.1fkB from 0x%04lx - 0x%04lx to 0x%04lx\n", (float) numCopied/1024.0, sourceStart, sourceStop, destinationStart);
+      printf("done, copied %1.1fkB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numCopied/1024.0, sourceStart, sourceStop, destinationStart);
     else if (numCopied>0)
-      printf("done, copied %ldB from 0x%04lx - 0x%04lx to 0x%04lx\n", numCopied, sourceStart, sourceStop, destinationStart);
+      printf("done, copied %" PRId64 "B from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", numCopied, sourceStart, sourceStop, destinationStart);
     else
       printf("done, no data copied\n");
   }
@@ -936,7 +936,7 @@ void move_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
 
   uint64_t  numMoved;
   uint16_t  *tmpImageBuf;   // temporary buffer
-  
+
   // print message
   if (verbose == INFORM)
     printf("  move data ... ");
@@ -946,15 +946,15 @@ void move_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
 
   // simple checks of scan window
   if (sourceStart > sourceStop)
-    Error("source start address 0x%04lx higher than end address 0x%04lx", sourceStart, sourceStop);
+    Error("source start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, sourceStart, sourceStop);
   if (sourceStart > (uint64_t) LENIMAGEBUF)
-    Error("source start address 0x%04lx exceeds buffer size 0x%04lx", sourceStart, LENIMAGEBUF);
+    Error("source start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, sourceStart, LENIMAGEBUF);
   if (sourceStop > (uint64_t) LENIMAGEBUF)
-    Error("source end address 0x%04lx exceeds buffer size 0x%04lx", sourceStop, LENIMAGEBUF);
+    Error("source end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, sourceStop, LENIMAGEBUF);
   if (destinationStart > (uint64_t) LENIMAGEBUF)
-    Error("destination start address 0x%04lx exceeds buffer size 0x%04lx", destinationStart, LENIMAGEBUF);
+    Error("destination start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, destinationStart, LENIMAGEBUF);
   if (destinationStart+(sourceStop-sourceStart+1) > (uint64_t) LENIMAGEBUF)
-    Error("destination end address 0x%04lx exceeds buffer size 0x%04lx", destinationStart+(sourceStop-sourceStart+1), LENIMAGEBUF);
+    Error("destination end address 0x%" PRIx64 " exceeds buffer size 0x" PRIx64, destinationStart+(sourceStop-sourceStart+1), LENIMAGEBUF);
 
   // get number of data to move (HB!=0x00)
   numMoved = 0;
@@ -985,11 +985,11 @@ void move_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
   }
   else if (verbose == CHATTY) {
     if (numMoved>1024*1024)
-      printf("done, moved %1.1fkB from 0x%04lx - 0x%04lx to 0x%04lx\n", (float) numMoved/1024.0/1024.0, sourceStart, sourceStop, destinationStart);
+      printf("done, moved %1.1fkB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numMoved/1024.0/1024.0, sourceStart, sourceStop, destinationStart);
     else if (numMoved>1024)
-      printf("done, moved %1.1fkB from 0x%04lx - 0x%04lx to 0x%04lx\n", (float) numMoved/1024.0, sourceStart, sourceStop, destinationStart);
+      printf("done, moved %1.1fkB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numMoved/1024.0, sourceStart, sourceStop, destinationStart);
     else if (numMoved>0)
-      printf("done, moved %ldB from 0x%04lx - 0x%04lx to 0x%04lx\n", numMoved, sourceStart, sourceStop, destinationStart);
+      printf("done, moved %" PRId64 "B from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", numMoved, sourceStart, sourceStop, destinationStart);
     else
       printf("done, no data moved\n");
   }
@@ -1076,15 +1076,15 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
     // save data, accound for address width
     if (addrStop <= 0xFFFF) {
-      fprintf(fp, "S1%02X%04lX", lenBlock+3, addrBlock);        // 16-bit address: 2B addr + data + 1B chk
+      fprintf(fp, "S1%02X%04X", lenBlock+3, (int) addrBlock);        // 16-bit address: 2B addr + data + 1B chk
       chk = (uint8_t) (lenBlock+3) + (uint8_t) addrBlock + (uint8_t) (addrBlock >> 8);
     }
     else if (addrStop <= 0xFFFFFF) {
-      fprintf(fp, "S2%02X%06lX", lenBlock+4, addrBlock);        // 24-bit address: 3B addr + data + 1B chk
+      fprintf(fp, "S2%02X%06X", lenBlock+4, (int) addrBlock);        // 24-bit address: 3B addr + data + 1B chk
       chk = (uint8_t) (lenBlock+4) + (uint8_t) addrBlock + (uint8_t) (addrBlock >> 8) + (uint8_t) (addrBlock >> 16);
     }
     else {
-      fprintf(fp, "S3%02X%08lX", lenBlock+5, addrBlock);        // 32-bit address: 4B addr + data + 1B chk
+      fprintf(fp, "S3%02X%08X", lenBlock+5, (int) addrBlock);        // 32-bit address: 4B addr + data + 1B chk
       chk = (uint8_t) (lenBlock+5) + (uint8_t) addrBlock + (uint8_t) (addrBlock >> 8) + (uint8_t) (addrBlock >> 16) + (uint8_t) (addrBlock >> 24);
     }
     for (int j=0; j<lenBlock; j++) {
@@ -1118,41 +1118,41 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%04lx - 0x%04lx)\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     if (numData>1024)
-      printf("done (%1.1fkB in 0x%04lx - 0x%04lx)\n", (float) numData/1024.0, addrStart, addrStop);
+      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      printf("done (%dB in 0x%04lx - 0x%04lx)\n", (int) numData, addrStart, addrStop);
+      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
       printf("done, no data\n");
   }
   fflush(stdout);
 
 } // export_s19
-  
+
 
 
 /**
    \fn void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose)
-   
+
    \param[in]  filename    name of output file
    \param[in]  imageBuf    memory image. HB!=0 indicates content. Index 0 corresponds to addrStart
    \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
-   export RAM image to file in Intel hexfile format. For description of 
+   export RAM image to file in Intel hexfile format. For description of
    Intel hex file format see http://en.wikipedia.org/wiki/Intel_HEX
 */
 
 void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   FILE      *fp;               // file pointer
-  const int maxLine = 32;      // max. length of data line 
+  const int maxLine = 32;      // max. length of data line
   uint8_t   data;              // value to store
   uint8_t   chk;               // checksum
   uint64_t  addrStart, addrStop, numData;  // image data range
   char      *shortname;        // filename w/o path
   uint8_t   useEla = 0;        // whether ELA records needed
   int64_t   addrEla;           // ELA record address
-    
+
   // strip path from filename for readability
   #if defined(WIN32)
     shortname = strrchr(filename, '\\');
@@ -1195,20 +1195,20 @@ void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
     // end address reached -> done
     if(addr > addrStop) break;
-    
-    // set length of next data block: max 128B and align with 128 for speed (see UM0560 section 3.4)  
+
+    // set length of next data block: max 128B and align with 128 for speed (see UM0560 section 3.4)
     uint8_t lenBlock = 1;
     while((lenBlock < maxLine) && ((addr+lenBlock) <= addrStop) && (imageBuf[addr+lenBlock] & 0xFF00) && ((addr+lenBlock) % maxLine)) {
       lenBlock++;
     }
-    
+
     // write ELA record if upper 16-bits of block addr is different than last ELA addr
     if(useEla && addrEla != (addrBlock >> 16)) {
       addrEla = addrBlock >> 16;
       chk = ~(0x02 + 0x04 + (uint8_t)addrEla + (uint8_t)(addrEla >> 8)) + 1;
       fprintf(fp, ":02000004%04X%02X\n", (uint16_t)addrEla, chk);
     }
-    
+
     // write the data record
     fprintf(fp, ":%02X%04X00", lenBlock, (uint16_t)addrBlock);
     chk = lenBlock + (uint8_t)addrBlock + (uint8_t)(addrBlock >> 8);
@@ -1219,7 +1219,7 @@ void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     }
     chk = ~chk + 1;
     fprintf(fp, "%02X\n", chk);
-    
+
     // go to next potential block
     addr += lenBlock;
   } // loop over address range
@@ -1237,11 +1237,11 @@ void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%04lx - 0x%04lx)\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     if (numData>1024)
-      printf("done (%1.1fkB in 0x%04lx - 0x%04lx)\n", (float) numData/1024.0, addrStart, addrStop);
+      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      printf("done (%dB in 0x%04lx - 0x%04lx)\n", (int) numData, addrStart, addrStop);
+      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
       printf("done, no data\n");
   }
@@ -1320,8 +1320,8 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     if (imageBuf[i] & 0xFF00) {
       if (!flagFile)
         fprintf(fp,"    ");
-      fprintf(fp, "0x%04lx	0x%02x\n", i, (imageBuf[i] & 0xFF));
-      //printf("0x%04x   0x%04x   0x%02x\n", i, imageBuf[i], (imageBuf[i] & 0xFF));
+      fprintf(fp, "0x%" PRIx64 "	0x%02x\n", i, (imageBuf[i] & 0xFF));
+      //printf("0x%" PRIx64 "   0x%04x   0x%02x\n", i, imageBuf[i], (imageBuf[i] & 0xFF));
     }
   }
 
@@ -1338,11 +1338,11 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%04lx - 0x%04lx)\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     if (numData>1024)
-      printf("done (%1.1fkB in 0x%04lx - 0x%04lx)\n", (float) numData/1024.0, addrStart, addrStop);
+      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      printf("done (%dB in 0x%04lx - 0x%04lx)\n", (int) numData, addrStart, addrStop);
+      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
       printf("done, no data\n");
   }
@@ -1419,11 +1419,11 @@ void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   }
   else if (verbose == CHATTY) {
     if (countByte>1024*1024)
-      printf("done (%1.1fMB in 0x%04lx - 0x%04lx)\n", (float) countByte/1024.0/1024.0, addrStart, addrStop);
+      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) countByte/1024.0/1024.0, addrStart, addrStop);
     else if (countByte>1024)
-      printf("done (%1.1fkB in 0x%04lx - 0x%04lx)\n", (float) countByte/1024.0, addrStart, addrStop);
+      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) countByte/1024.0, addrStart, addrStop);
     else if (countByte>0)
-      printf("done (%dB in 0x%04lx - 0x%04lx)\n", (int) countByte, addrStart, addrStop);
+      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) countByte, addrStart, addrStop);
     else
       printf("done, no data\n");
   }
