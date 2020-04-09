@@ -45,6 +45,12 @@ Georg
 
 # Revision History
 
+1.5 (2020-04-09): 
+  - improved S19 export for >16bit addresses
+  - added IHX export option
+  
+----------------
+
 1.4 (2019-03-21): 
   - added '-fill' command
   - changed '-clear' to '-cut' for clarity (data is removed, not cleared)

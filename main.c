@@ -234,6 +234,7 @@ int main(int argc, char ** argv) {
     printf("Supported export formats:\n");
     printf("  - print to stdout (-print)\n");
     printf("  - Motorola S19 (*.s19)\n");
+    printf("  - Intel Hex (*.hex, *.ihx)\n");
     printf("  - ASCII table (*.txt) with 'hexAddr  hexValue'\n");
     printf("  - Binary data (*.bin) without starting address\n");
     printf("\n");
@@ -302,7 +303,7 @@ int main(int argc, char ** argv) {
       // convert to memory image, depending on file type 
       if (strstr(infile, ".s19") != NULL)   // Motorola S-record format
         convert_s19(fileBuf, lenFile, imageBuf, verbose);
-      else if ((strstr(infile, ".hex") != NULL) || (strstr(infile, ".ihx") != NULL))   // Intel HEX-format
+      else if ((strstr(infile, ".hex") != NULL) || (strstr(infile, ".ihx") != NULL))   // Intel hex format
         convert_ihx(fileBuf, lenFile, imageBuf, verbose);
       else if (strstr(infile, ".txt") != NULL)   // text table (hex addr / data)
         convert_txt(fileBuf, lenFile, imageBuf, verbose);
@@ -343,8 +344,10 @@ int main(int argc, char ** argv) {
       strncpy(outfile, argv[++i], STRLEN-1);
       
       // export in format depending on file extension 
-      if (strstr(outfile, ".s19") != NULL)   // Motorola S-record format
+      if (strstr(outfile, ".s19") != NULL)        // Motorola S-record format
         export_s19(outfile, imageBuf, verbose);
+      else if ((strstr(outfile, ".hex") != NULL) || (strstr(outfile, ".ihx") != NULL))   // Intel hex format
+        export_ihx(outfile, imageBuf, verbose);
       else if (strstr(outfile, ".txt") != NULL)   // text table (hex addr / hex data)
         export_txt(outfile, imageBuf, verbose);
       else if (strstr(outfile, ".bin") != NULL)   // binary format

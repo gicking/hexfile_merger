@@ -5,8 +5,8 @@
 \brief     Import multiple files of various formats and merge them to a single output file. For details see <a href="https://github.com/gicking/hexfile_merger">project homepage</a>
 
 \author    Georg Icking-Konert
-\version   1.3
-\date      2018/12/15
+\version   1.5
+\date      2020/04/09
 
 \copyright Apache License 2.0
 

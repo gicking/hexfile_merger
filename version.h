@@ -19,7 +19,7 @@
 #define _SW_VERSION_H_
 
 /// 16b SW version identifier 
-#define VERSION     ((1<<14) | (4<<6) | (0<<1) | 0)     // -> v1.4.0b
+#define VERSION     ((1<<14) | (5<<6) | (0<<1) | 1)     // -> v1.5.0
 
 #endif // _SW_VERSION_H_
 
@@ -29,14 +29,20 @@
 Revision History
 ----------------
 
-1.4 (2019-03-21): 
+v1.5.0 (2020-04-09)
+  - improved S19 export for >16bit addresses
+  - added IHX export option
+  
+----------------
+
+1.4.0 (2019-03-21): 
   - added '-fill' command
   - changed '-clear' to '-cut' for clarity (data is removed, not cleared)
   - added support for 64-bit address range
   
 ----------------
 
-1.3 (2018-12-24): 
+1.3.0 (2018-12-24): 
   - changed commandline keywords (became too complex)
   - added more verbose information
   - added binary import and export format
@@ -48,7 +54,7 @@ Revision History
 
 ----------------
 
-1.2 (2018-12-08): 
+1.2.0 (2018-12-08): 
   - remove (non-functional) Intel hexfile export
   - fixed s19 export bug for 16bit addresses
   - added optional hex support in table import
@@ -56,12 +62,12 @@ Revision History
 
 ----------------
 
-1.1 (2017-03-31): 
+1.1.0 (2017-03-31): 
   - fixed wrong handling of extended linear address records
 
 ----------------
 
-1.0 (2015-06-18):
+1.0.0 (2015-06-18):
   - initial release by Georg Icking-Konert under the Apache License 2.0
       
 ********************/
