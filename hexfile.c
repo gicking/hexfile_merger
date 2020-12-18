@@ -21,10 +21,10 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <ctype.h>
+#include <time.h>
 #include "hexfile.h"
 #include "main.h"
 #include "misc.h"
-
 
 /**
    \fn char *get_line(char **buf, char *line)
@@ -654,7 +654,7 @@ void convert_bin(char *fileBuf, uint64_t lenFileBuf, uint64_t addrStart, uint16_
 */
 void get_image_size(uint16_t *imageBuf, uint64_t scanStart, uint64_t scanStop, uint64_t *addrStart, uint64_t *addrStop, uint64_t *numData) {
 
-  // simple checks of scan window
+  // simple checks of address window
   if (scanStart > scanStop)
     Error("scan start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, scanStart, scanStop);
   if (scanStart > LENIMAGEBUF)
@@ -703,7 +703,7 @@ void fill_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
     printf("  fill memory image ... ");
   fflush(stdout);
 
-  // simple checks of scan window
+  // simple checks of address window
   if (addrStart > addrStop)
     Error("start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
   if (addrStart > (uint64_t) LENIMAGEBUF)
@@ -711,7 +711,7 @@ void fill_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
   if (addrStop > (uint64_t) LENIMAGEBUF)
     Error("end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStop, LENIMAGEBUF);
 
-  // loop over memory image and clear all data outside specified clipping window
+  // loop over memory image and fill all data inside specified range
   numFilled = 0;
   for (uint64_t addr = addrStart; addr <= addrStop; addr++) {
     numFilled++;                                      // count filled bytes for output below
@@ -739,6 +739,66 @@ void fill_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
 
 
 /**
+   \fn void fill_image_random(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose)
+
+   \param      imageBuf     memory image containing data. HB!=0 indicates content
+   \param[in]  addrStart    starting address of filling window
+   \param[in]  addrStop     topmost address of filling window
+   \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+
+   Fill memory image in specified window with random values in 0..255 and set status to "defined" (HB=0xFF)
+*/
+void fill_image_random(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose) {
+
+  uint64_t  numFilled;
+
+  // print message
+  if (verbose == INFORM)
+    printf("  random fill image ... ");
+  else if (verbose == CHATTY)
+    printf("  random fill memory image ... ");
+  fflush(stdout);
+
+  // simple checks of scan window
+  if (addrStart > addrStop)
+    Error("start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
+  if (addrStart > (uint64_t) LENIMAGEBUF)
+    Error("start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStart, LENIMAGEBUF);
+  if (addrStop > (uint64_t) LENIMAGEBUF)
+    Error("end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStop, LENIMAGEBUF);
+
+  // set random seed
+  srand(time(NULL));
+
+  // loop over memory image and fill all data inside specified range
+  numFilled = 0;
+  for (uint64_t addr = addrStart; addr <= addrStop; addr++) {
+    numFilled++;                                      // count filled bytes for output below
+    uint8_t value = (uint8_t) (rand());
+    imageBuf[addr] = ((uint16_t) value) | 0xFF00;     // HB=0x00 indicates data undefined, LB contains data
+  }
+
+  // print message
+  if (verbose == INFORM) {
+    printf("done\n");
+  }
+  else if (verbose == CHATTY) {
+    if (numFilled>1024*1024)
+      printf("done, filled %1.1fMB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numFilled/1024.0/1024.0, addrStart, addrStop);
+    else if (numFilled>1024)
+      printf("done, filled %1.1fkB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numFilled/1024.0, addrStart, addrStop);
+    else if (numFilled>0)
+      printf("done, filled %dB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (int) numFilled, addrStart, addrStop);
+    else
+      printf("done, no data filled\n");
+  }
+  fflush(stdout);
+
+} // fill_image_random
+
+
+
+/**
    \fn void clip_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose)
 
    \param      imageBuf     memory image containing data. HB!=0 indicates content
@@ -759,7 +819,7 @@ void clip_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
     printf("  clip memory image ... ");
   fflush(stdout);
 
-  // simple checks of scan window
+  // simple checks of address window
   if (addrStart > addrStop)
     Error("start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
   if (addrStart > (uint64_t) LENIMAGEBUF)
@@ -818,7 +878,7 @@ void cut_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_
     printf("  clear memory image ... ");
   fflush(stdout);
 
-  // simple checks of scan window
+  // simple checks of address window
   if (addrStart > addrStop)
     Error("start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
   if (addrStart > (uint64_t) LENIMAGEBUF)
@@ -878,7 +938,7 @@ void copy_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
     printf("  copy image data ... ");
   fflush(stdout);
 
-  // simple checks of scan window
+  // simple checks of address window
   if (sourceStart > sourceStop)
     Error("source start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, sourceStart, sourceStop);
   if (sourceStart > (uint64_t) LENIMAGEBUF)
@@ -944,7 +1004,7 @@ void move_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
     printf("  move image data ... ");
   fflush(stdout);
 
-  // simple checks of scan window
+  // simple checks of address window
   if (sourceStart > sourceStop)
     Error("source start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, sourceStart, sourceStop);
   if (sourceStart > (uint64_t) LENIMAGEBUF)

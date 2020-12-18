@@ -1,16 +1,16 @@
 /**
    \file hexfile.h
-   
+
    \author G. Icking-Konert
    \date 2018-12-14
    \version 0.2
-   
+
    \brief declaration of routines for HEX, S19 and table files
-   
-   declaration of routines for importing and exporting Motorola S19 and Intel HEX files, 
-   as well as plain ASCII tables.  
+
+   declaration of routines for importing and exporting Motorola S19 and Intel HEX files,
+   as well as plain ASCII tables.
    (format descriptions under http://en.wikipedia.org/wiki/SREC_(file_format) or
-   http://www.keil.com/support/docs/1584.htm). 
+   http://www.keil.com/support/docs/1584.htm).
 */
 
 // for including file only once
@@ -48,6 +48,9 @@ void  get_image_size(uint16_t *imageBuf, uint64_t scanStart, uint64_t scanStop, 
 
 /// fill data in memory image with fixed value
 void  fill_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t value, uint8_t verbose);
+
+/// fill data in memory image with random values in 0..255
+void  fill_image_random(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose);
 
 /// clip memory image to specified window
 void  clip_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose);

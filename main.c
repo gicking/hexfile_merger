@@ -4,9 +4,9 @@
    \author G. Icking-Konert
    \date 2018-12-14
    \version 0.2
-   
+
    \brief implementation of main routine
-   
+
    this is the main file containing browsing input parameters, calling the import and export routines
 
    \note program not yet fully tested!
@@ -28,16 +28,16 @@
 
 /**
    \fn int main(int argc, char *argv[])
-   
+
    \param argc      number of commandline arguments + 1
    \param argv      string array containing commandline arguments (argv[0] contains name of executable)
-   
+
    \return dummy return code (not used)
-   
+
    Main routine for import and output
 */
 int main(int argc, char ** argv) {
- 
+
   // local variables
   char      appname[STRLEN];      // name of application without path
   char      version[100];         // version as string
@@ -45,7 +45,7 @@ int main(int argc, char ** argv) {
   uint16_t  *imageBuf;            // global RAM image buffer (high byte != 0 indicates value is set)
   bool      printHelp;            // flag for printing help page
   char      tmp[STRLEN];          // misc buffer
-  
+
 
   // initialize defaults
   g_pauseOnExit         = false;  // no wait for <return> before terminating (dummy)
@@ -55,25 +55,25 @@ int main(int argc, char ** argv) {
   // debug: print arguments
   /*
   printf("\n\narguments:\n");
-  for (i=0; i<argc; i++) { 
+  for (i=0; i<argc; i++) {
     //printf("  %d: '%s'\n", (int) i, argv[i]);
     printf("%s ", argv[i]);
   }
   printf("\n\n");
   exit(1);
   */
-  
+
 
   // get app name & version, and change console title
   get_app_name(argv[0], VERSION, appname, version);
   sprintf(tmp, "%s (%s)", appname, version);
-  setConsoleTitle(tmp);  
+  setConsoleTitle(tmp);
 
-  
+
   /////////////////
   // 1st pass of commandline arguments: set global parameters, no import/export yet
   /////////////////
-  
+
   printHelp = false;
   for (int i=1; i<argc; i++) {
 
@@ -85,11 +85,11 @@ int main(int argc, char ** argv) {
       break;
 
     } // help
-    
+
 
     // set verbosity level (0..3)
     else if ((!strcmp(argv[i], "-v")) || (!strcmp(argv[i], "-verbose"))) {
-      
+
       // get verbosity level
       if (i+1<argc)
         sscanf(argv[++i],"%d",&verbose);
@@ -101,7 +101,7 @@ int main(int argc, char ** argv) {
       if (verbose > CHATTY) verbose = CHATTY;
 
     } // verbosity
-    
+
 
     // skip file import. Just check parameter number
     else if (!strcmp(argv[i], "-import")) {
@@ -123,7 +123,7 @@ int main(int argc, char ** argv) {
       }
 
     } // import
-      
+
 
     // skip file export. Just check parameter number
     else if (!strcmp(argv[i], "-export")) {
@@ -134,13 +134,13 @@ int main(int argc, char ** argv) {
         break;
       }
     } // export
-      
+
 
     // skip print
     else if (!strcmp(argv[i], "-print")) {
 
     } // print
-      
+
 
     // skip memory filling. Just check parameter number
     else if (!strcmp(argv[i], "-fill")) {
@@ -151,7 +151,18 @@ int main(int argc, char ** argv) {
         break;
       }
     } // fill
-      
+
+
+    // skip memory filling. Just check parameter number
+    else if (!strcmp(argv[i], "-fillRand")) {
+      if (i+2<argc)
+        i+=2;
+      else {
+        printHelp = true;
+        break;
+      }
+    } // fillRand
+
 
     // skip memory clipping. Just check parameter number
     else if (!strcmp(argv[i], "-clip")) {
@@ -162,7 +173,7 @@ int main(int argc, char ** argv) {
         break;
       }
     } // clip
-      
+
 
     // skip cutting out memory range. Just check parameter number
     else if (!strcmp(argv[i], "-cut")) {
@@ -173,7 +184,7 @@ int main(int argc, char ** argv) {
         break;
       }
     } // cut
-      
+
 
     // skip memory copy. Just check parameter number
     else if (!strcmp(argv[i], "-copy")) {
@@ -184,7 +195,7 @@ int main(int argc, char ** argv) {
         break;
       }
     } // copy
-      
+
 
     // skip memory move. Just check parameter number
     else if (!strcmp(argv[i], "-move")) {
@@ -205,7 +216,7 @@ int main(int argc, char ** argv) {
 
   } // 1st pass over commandline arguments
 
-  
+
   // on request (-h) or in case of parameter error print help page
   if ((printHelp==true) || (argc == 1)) {
     printf("\n");
@@ -220,6 +231,7 @@ int main(int argc, char ** argv) {
     printf("    -export [outfile]                   export image to file\n");
     printf("    -print                              print image to console\n");
     printf("    -fill [addrStart addrStop val]      fill specified range with fixed value (addr & val in hex)\n");
+    printf("    -fillRand [addrStart addrStop]      fill specified range with random values in 0-255 (addr in hex)\n");
     printf("    -clip [addrStart addrStop]          clip image to specified range (addr in hex)\n");
     printf("    -cut  [addrStart addrStop]          cut specified data range from image (addr in hex)\n");
     printf("    -copy [fromStart fromStop toStart]  copy data within image (addr in hex). Keep old data\n");
@@ -262,7 +274,7 @@ int main(int argc, char ** argv) {
 
   // loop over commandline arguments
   for (int i=1; i<argc; i++) {
-    
+
     // skip print help (already treated in 1st pass)
     if ((!strcmp(argv[i], "-h")) || (!strcmp(argv[i], "-help"))) {
       i += 0;   // dummy
@@ -277,7 +289,7 @@ int main(int argc, char ** argv) {
 
     // import next ASCII file into RAM
     else if (!strcmp(argv[i], "-import")) {
-      
+
       // intermediate variables
       char      infile[STRLEN]="";     // name of input file
       char      *fileBuf;              // RAM buffer for input file
@@ -290,7 +302,7 @@ int main(int argc, char ** argv) {
 
       // get file name
       strncpy(infile, argv[++i], STRLEN-1);
-      
+
       // for binary file also get starting address
       if (strstr(infile, ".bin") != NULL) {
         strncpy(tmp, argv[++i], STRLEN-1);
@@ -300,7 +312,7 @@ int main(int argc, char ** argv) {
       // import file into string buffer (no interpretation, yet)
       load_file(infile, fileBuf, &lenFile, verbose);
 
-      // convert to memory image, depending on file type 
+      // convert to memory image, depending on file type
       if (strstr(infile, ".s19") != NULL)   // Motorola S-record format
         convert_s19(fileBuf, lenFile, imageBuf, verbose);
       else if ((strstr(infile, ".hex") != NULL) || (strstr(infile, ".ihx") != NULL))   // Intel hex format
@@ -311,10 +323,10 @@ int main(int argc, char ** argv) {
         convert_bin(fileBuf, lenFile, addrStart, imageBuf, verbose);
       else
         Error("Input file %s has unsupported format (*.s19, *.hex, *.ihx, *.txt, *.bin)", infile);
- 
+
       // debug
       #if defined(DEBUG)
-      { 
+      {
         uint64_t addr, addrStart, addrStop, numData;
         get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
         printf("\n\n");
@@ -330,20 +342,20 @@ int main(int argc, char ** argv) {
 
       // release intermediate buffers
       free(fileBuf);
-      
+
     } // import file
 
 
     // export RAM image to file
     else if (!strcmp(argv[i], "-export")) {
-  
+
       // intermediate variables
       char      outfile[STRLEN]="";     // name of export file
 
       // get file name
       strncpy(outfile, argv[++i], STRLEN-1);
-      
-      // export in format depending on file extension 
+
+      // export in format depending on file extension
       if (strstr(outfile, ".s19") != NULL)        // Motorola S-record format
         export_s19(outfile, imageBuf, verbose);
       else if ((strstr(outfile, ".hex") != NULL) || (strstr(outfile, ".ihx") != NULL))   // Intel hex format
@@ -360,12 +372,12 @@ int main(int argc, char ** argv) {
 
     // print RAM image to console
     else if (!strcmp(argv[i], "-print")) {
-  
+
       // print to stdout
       export_txt("console", imageBuf, verbose);
 
     } // export file/print
-      
+
 
     // fill memory range with fixed value
     else if (!strcmp(argv[i], "-fill")) {
@@ -380,7 +392,21 @@ int main(int argc, char ** argv) {
       fill_image(imageBuf, addrStart, addrStop, (uint8_t) value, verbose);
 
     } // fill memory range
-      
+
+
+    // fill memory range with random values in 0..255
+    else if (!strcmp(argv[i], "-fillRand")) {
+
+      // get start and stop adress of address window, and value to fill with
+      uint64_t  addrStart, addrStop;
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &addrStart);
+      strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &addrStop);
+
+      // fill specified memory range
+      fill_image_random(imageBuf, addrStart, addrStop, verbose);
+
+    } // randomly fill memory range
+
 
     // clip memory image. Set values outside given window to unset
     else if (!strcmp(argv[i], "-clip")) {
@@ -394,7 +420,7 @@ int main(int argc, char ** argv) {
       clip_image(imageBuf, addrStart, addrStop, verbose);
 
     } // clip memory image
-      
+
 
     // cut data range from memory image. Set values within given window to "undefined"
     else if (!strcmp(argv[i], "-cut")) {
@@ -408,7 +434,7 @@ int main(int argc, char ** argv) {
       cut_image(imageBuf, addrStart, addrStop, verbose);
 
     } // cut data range from memory image
-      
+
 
     // copy data within in memory image
     else if (!strcmp(argv[i], "-copy")) {
@@ -423,7 +449,7 @@ int main(int argc, char ** argv) {
       copy_image(imageBuf, sourceStart, sourceStop, targetStart, verbose);
 
     } // copy data in memory image
-      
+
 
     // move data within in memory image
     else if (!strcmp(argv[i], "-move")) {
@@ -457,7 +483,7 @@ int main(int argc, char ** argv) {
 
   // avoid compiler warnings
   return(0);
-  
+
 } // main
 
 

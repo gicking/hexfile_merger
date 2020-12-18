@@ -11,6 +11,7 @@ Import files of various formats, apply simple manipulations, and merge them to a
     -export [outfile]                   export image to file
     -print                              print image to console
     -fill [addrStart addrStop val]      fill specified range with fixed value (addr & val in hex)
+    -fillRand [addrStart addrStop]      fill specified range with random values in 0-255 (addr in hex)
     -clip [addrStart addrStop]          clip image to specified range (addr in hex)
     -cut  [addrStart addrStop]          cut specified data range from image (addr in hex)
     -copy [fromStart fromStop toStart]  copy data within image (addr in hex). Keep old data
@@ -45,20 +46,20 @@ Georg
 
 # Revision History
 
-1.5 (2020-04-09): 
+1.5 (2020-04-09):
   - improved S19 export for >16bit addresses
   - added IHX export option
-  
+
 ----------------
 
-1.4 (2019-03-21): 
+1.4 (2019-03-21):
   - added '-fill' command
   - changed '-clear' to '-cut' for clarity (data is removed, not cleared)
   - added support for 64-bit address range
-  
+
 ----------------
 
-1.3 (2018-12-24): 
+1.3 (2018-12-24):
   - changed commandline keywords (became too complex)
   - added more verbose information
   - added binary import and export format
@@ -70,7 +71,7 @@ Georg
 
 ----------------
 
-1.2 (2018-12-08): 
+1.2 (2018-12-08):
   - remove (non-functional) Intel hexfile export
   - fixed s19 export bug for 16bit addresses
   - added optional hex support in table import
@@ -78,7 +79,7 @@ Georg
 
 ----------------
 
-1.1 (2017-03-31): 
+1.1 (2017-03-31):
   - fixed wrong handling of extended linear address records
 
 ----------------

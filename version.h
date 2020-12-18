@@ -19,7 +19,7 @@
 #define _SW_VERSION_H_
 
 /// 16b SW version identifier 
-#define VERSION     ((1<<14) | (5<<6) | (0<<1) | 1)     // -> v1.5.0
+#define VERSION     ((1<<14) | (5<<6) | (1<<1) | 1)     // -> v1.5.1
 
 #endif // _SW_VERSION_H_
 
@@ -27,6 +27,11 @@
 /********************
 
 Revision History
+----------------
+
+v1.5.1 (2020-12-17)
+  - added random fill command
+  
 ----------------
 
 v1.5.0 (2020-04-09)
