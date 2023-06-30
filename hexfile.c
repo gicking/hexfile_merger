@@ -309,11 +309,12 @@ void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
     // get next line. On EOF terminate
     if (!get_line(&p, line))
       break;
+    //printf("%s\n", line);
 
     // increase line counter
     linecount++;
     chkCalc = 0x00;
-
+    
     // check 1st char (must be ':')
     if (line[0] != ':')
       Error("Line %u in Intel hex file: line does not start with ':'", linecount);
@@ -408,6 +409,10 @@ void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
     chkCalc = 255 - chkCalc + 1;                 // calculate 2-complement
     if (chkCalc != chkRead)
       Error("Line %u in Intel hex file: checksum error (read 0x%02x, calc 0x%02x)", linecount, chkRead, chkCalc);
+
+    // debug
+    //printf("%ld\n", linecount);
+    //fflush(stdout);
 
   } // while !EOF
 
