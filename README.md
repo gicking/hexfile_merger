@@ -46,20 +46,31 @@ Georg
 
 # Revision History
 
-1.5 (2020-04-09):
+v1.6.0 (2023-06-29)
+  - switch from static RAM buffer to dynamic memory image
+  - support for 32-bit addresses (see memory_image.h)
+  
+----------------
+
+v1.5.1 (2020-12-17)
+  - added random fill command
+  
+----------------
+
+1.5.0 (2020-04-09):
   - improved S19 export for >16bit addresses
   - added IHX export option
 
 ----------------
 
-1.4 (2019-03-21):
+1.4.0 (2019-03-21):
   - added '-fill' command
   - changed '-clear' to '-cut' for clarity (data is removed, not cleared)
   - added support for 64-bit address range
 
 ----------------
 
-1.3 (2018-12-24):
+1.3.0 (2018-12-24):
   - changed commandline keywords (became too complex)
   - added more verbose information
   - added binary import and export format
@@ -71,7 +82,7 @@ Georg
 
 ----------------
 
-1.2 (2018-12-08):
+1.2.0 (2018-12-08): 
   - remove (non-functional) Intel hexfile export
   - fixed s19 export bug for 16bit addresses
   - added optional hex support in table import
@@ -79,10 +90,10 @@ Georg
 
 ----------------
 
-1.1 (2017-03-31):
+1.1.0 (2017-03-31):
   - fixed wrong handling of extended linear address records
 
 ----------------
 
-1.0 (2015-06-18):
+1.0.0 (2015-06-18):
   - initial release by Georg Icking-Konert under the Apache License 2.0

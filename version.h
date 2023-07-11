@@ -2,8 +2,6 @@
   \file version.h
    
   \author G. Icking-Konert
-  \date 2008-11-02
-  \version 0.1
    
   \brief declaration of SW version number
    
@@ -19,7 +17,7 @@
 #define _SW_VERSION_H_
 
 /// 16b SW version identifier 
-#define VERSION     ((1<<14) | (5<<6) | (1<<1) | 1)     // -> v1.5.1
+#define VERSION     ((1<<14) | (6<<6) | (0<<1) | 1)     // -> v1.6.0
 
 #endif // _SW_VERSION_H_
 
@@ -27,6 +25,12 @@
 /********************
 
 Revision History
+----------------
+
+v1.6.0 (2023-06-29)
+  - switch from static RAM buffer to dynamic memory image
+  - support for 32-bit addresses (see memory_image.h)
+  
 ----------------
 
 v1.5.1 (2020-12-17)

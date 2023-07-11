@@ -2,8 +2,6 @@
    \file hexfile.c
 
    \author G. Icking-Konert
-   \date 2018-12-14
-   \version 0.2
 
    \brief implementation of routines for HEX, S19 and table files
 
@@ -22,58 +20,22 @@
 #include <inttypes.h>
 #include <ctype.h>
 #include <time.h>
+#include <assert.h>
 #include "hexfile.h"
 #include "main.h"
 #include "misc.h"
 
 /**
-   \fn char *get_line(char **buf, char *line)
+  \fn void import_s19(const char *filename, MemoryImage_s *image, const uint8_t verbose)
 
-   \param[in]  buf        pointer to read from (is updated)
-   \param[out] line       pointer to line read (has to be large anough)
+  \param[in]  filename    full name of file to read 
+  \param      image       pointer to memory image. Must be initialized. Existing content is overwritten
+  \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
-   read line (until LF, CR, or EOF) from RAM buffer and advance buffer pointer.
-   memory for line has to be allocated externally
+  Read Motorola s19 hexfile into to memory image. For description of
+  Motorola S19 file format see http://en.wikipedia.org/wiki/SREC_(file_format)
 */
-char *get_line(char **buf, char *line) {
-
-  char  *p = line;
-
-  // copy line
-  while ((**buf!=10) && (**buf!=13) && (**buf!=0)) {
-    *line = **buf;
-    line++;
-    (*buf)++;
-  }
-
-  // skip CR + LF in buffer
-  while ((**buf==10) || (**buf==13))
-    (*buf)++;
-
-  // terminate line
-  *line = '\0';
-
-  // check if data was copied
-  if (p == line)
-    return(NULL);
-  else
-    return(p);
-
-} // get_line
-
-
-
-/**
-   \fn void load_file(const char *filename, char *fileBuf, uint64_t *lenFileBuf, uint8_t verbose)
-
-   \param[in]  filename     name of file to read
-   \param[out] fileBuf      memory buffer containing file content
-   \param[out] lenFileBuf   size of data [B] read from file
-   \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
-
-   read file from file to memory buffer. Don't interpret (is done in separate routine)
-*/
-void load_file(const char *filename, char *fileBuf, uint64_t *lenFileBuf, uint8_t verbose) {
+void import_s19(const char *filename, MemoryImage_s *image, const uint8_t verbose) {
 
   FILE      *fp;
 
@@ -89,100 +51,40 @@ void load_file(const char *filename, char *fileBuf, uint64_t *lenFileBuf, uint8_
     shortname++;
 
   // print message
-  if (verbose >= SILENT)
-    printf("  load '%s' ... ", shortname);
+  if (verbose == INFORM)
+    printf("  read '%s' ... ", shortname);
+  else if (verbose == CHATTY)
+    printf("  read Motorola S19 file '%s' ... ", shortname);
   fflush(stdout);
 
   // open file to read
-  if (!(fp = fopen(filename, "rb")))
+  if (!(fp = fopen(filename, "rb"))) {
+    MemoryImage_free(image);
     Error("Failed to open file %s", filename);
-
-  // get filesize
-  fseek(fp, 0, SEEK_END);
-  (*lenFileBuf) = ftell(fp);
-  fseek(fp, 0, SEEK_SET);
-
-  // check file size vs. buffer
-  if ((*lenFileBuf) > LENFILEBUF)
-    Error("File %s exceeded buffer size (%ld vs %ld)", (*lenFileBuf), LENFILEBUF);
-
-  // init memory image to zero
-  memset(fileBuf, 0, LENFILEBUF * sizeof(*fileBuf));
-
-  // read file to buffer
-  fread(fileBuf, (*lenFileBuf), 1, fp);
-
-  // close file again
-  fclose(fp);
-
-  // print message
-  if ((verbose == SILENT) || (verbose == INFORM)){
-    printf("done\n");
   }
-  else if (verbose == CHATTY) {
-    if ((*lenFileBuf)>1024*1024)
-      printf("done (%1.1fMB)\n", (float) (*lenFileBuf)/1024.0/1024.0);
-    else if ((*lenFileBuf)>1024)
-      printf("done (%1.1fkB)\n", (float) (*lenFileBuf)/1024.0);
-    else if ((*lenFileBuf)>0)
-      printf("done (%dB)\n", (int) (*lenFileBuf));
-    else
-      printf("done, no data read\n");
-  }
-  fflush(stdout);
-
-} // load_file
 
 
+  //=====================
+  // start data import
+  //=====================
 
-/**
-   \fn void convert_s19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose)
+  char              line[STRLEN], tmp[STRLEN];
+  int               linecount = 0, idx, len;
+  uint8_t           type, chkRead, chkCalc;
+  MEMIMAGE_ADDR_T   address = 0; 
+  int               value = 0;
 
-   \param[in]  fileBuf      memory buffer to read from
-   \param[in]  lenFileBuf   length of memory buffer
-   \param[out] imageBuf     RAM image of file. HB!=0 indicates content
-   \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
-
-   convert memory buffer containing s19 hexfile to memory image. For description of
-   Motorola S19 file format see http://en.wikipedia.org/wiki/SREC_(file_format)
-*/
-void convert_s19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose) {
-
-  char      line[1000], tmp[1000], *p;
-  uint64_t  linecount, idx;
-  uint8_t   type, len, chkRead, chkCalc;
-  uint64_t  addr, addrStart, addrStop, numData;
-  int       val;
-
-  // print message
-  if (verbose == INFORM)
-    printf("  convert S19 ... ");
-  else if (verbose == CHATTY)
-    printf("  convert Motorola S19 file ... ");
-  fflush(stdout);
-
-
-  //////
-  // import data to memory with syntax check
-  //////
-  p          = fileBuf;
-  linecount  = 0;
-  numData    = 0;
-  addrStart  = 0xFFFFFFFFFFFFFFFF;
-  addrStop   = 0x0000000000000000;
-  while ((uint64_t) (p-fileBuf) < lenFileBuf) {
-
-    // get next line. On EOF terminate
-    if (!get_line(&p, line))
-      break;
+  // read data line by line
+  while (fgets(line, STRLEN, fp)) {
 
     // increase line counter
     linecount++;
-    chkCalc = 0x00;
 
     // check 1st char (must be 'S')
-    if (line[0] != 'S')
+    if (line[0] != 'S') {
+      MemoryImage_free(image);
       Error("Line %u in Motorola S-record file: line does not start with 'S'", linecount);
+    }
 
     // record type
     type = line[1]-48;
@@ -194,174 +96,199 @@ void convert_s19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
     // record length (address + data + checksum)
     sprintf(tmp,"0x00");
     strncpy(tmp+2, line+2, 2);
-    sscanf(tmp, "%x", &val);
-    len = val;
-    chkCalc += val;              // increase checksum
+    sscanf(tmp, "%x", &value);
+    len = value;
+    chkCalc = value;
 
     // address (S1=16bit, S2=24bit, S3=32bit)
-    addr = 0;
+    address = 0;
     for (int i=0; i<type+1; i++) {
-	  sprintf(tmp,"0x00");
+      sprintf(tmp,"0x00");
       tmp[2] = line[4+(i*2)];
       tmp[3] = line[5+(i*2)];
-      sscanf(tmp, "%x", &val);
-      addr *= (uint64_t) 256;
-      addr += (uint64_t) val;
-      chkCalc += (uint8_t) val;
+      sscanf(tmp, "%x", &value);
+      address *= (uint64_t) 256;
+      address += (uint64_t) value;
+      chkCalc += (uint8_t) value;
     }
 
-    // check for buffer overflow
-    if (addr > (uint64_t) (LENIMAGEBUF-1L))
-      Error("Line %u in Motorola S-record file: buffer address exceeded (%dMB vs %dMB)", linecount, (int) (addr/1024L/1024L), (int) (LENIMAGEBUF/1024L/1024L));
-
     // read record data
-    idx=6+(type*2);                     // start at position 8, 10, or 12, depending on record type
-    len=len-1-(1+type);                 // substract chk and address length
-    for (int i=0; i<len; i++) {
+    idx = 6+(type*2);                   // start at position 8, 10, or 12, depending on record type
+    len = len-1-(1+type);               // substract chk and address length
+    for (MEMIMAGE_ADDR_T i=0; i<len; i++) {
+      
+      // get next value
       sprintf(tmp,"0x00");
       strncpy(tmp+2, line+idx, 2);      // get next 2 chars as string
-      sscanf(tmp, "%x", &val);          // interpret as hex data
-      imageBuf[addr+i] = ((uint16_t) val) | 0xFF00;  // store data byte in buffer and set high byte for "defined"
-      numData++;                        // increade byte counter
-      chkCalc += (uint8_t) val;                   // increase checksum
+      sscanf(tmp, "%x", &value);        // interpret as hex data
+
+      // store data byte in memory image
+      assert(MemoryImage_addData(image, address+i, (uint8_t) value));
+
+      chkCalc += (uint8_t) value;       // increase checksum
       idx+=2;                           // advance 2 chars in line
     }
 
-    // for printout store min/max address in file
-    if (addr       < addrStart)  addrStart = addr;
-    if (addr+len-1 > addrStop)   addrStop  = addr+len-1;
-
-    // checksum
+    // read checksum
     sprintf(tmp,"0x00");
     strncpy(tmp+2, line+idx, 2);
-    sscanf(tmp, "%x", &val);
-    chkRead = (uint8_t) val;
+    sscanf(tmp, "%x", &value);
+    chkRead = (uint8_t) value;
 
     // assert checksum (0xFF xor (sum over all except record type)
     chkCalc ^= 0xFF;                 // invert checksum
-    if (chkCalc != chkRead)
+    if (chkCalc != chkRead) {
+      MemoryImage_free(image);
       Error("Line %u in Motorola S-record file: checksum error (0x%02x vs. 0x%02x)", linecount, chkRead, chkCalc);
+    }
 
   } // while !EOF
 
+  //=====================
+  // end data import
+  //=====================
+
+
+  // close file again
+  fclose(fp);
+
   // print message
-  if (verbose == INFORM) {
+  if (verbose == SILENT){
     printf("done\n");
   }
+  else if (verbose == INFORM) {
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB)\n", (float) image->numEntries/1024.0/1024.0);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB)\n", (float) image->numEntries/1024.0);
+    else if (image->numEntries > 0)
+      printf("done (%dB)\n", (int) image->numEntries);
+    else
+      printf("done, no data\n");
+  }
   else if (verbose == CHATTY) {
-    if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
-    else if (numData>1024)
-      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
-    else if (numData>0)
-      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0/1024.0, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 0)
+      printf("done (%dB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (int) image->numEntries, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
     else
       printf("done, no data\n");
   }
   fflush(stdout);
 
-} // convert_s19
+} // import_s19()
 
 
 
 /**
-   \fn void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose)
+  \fn void import_ihx(const char *filename, MemoryImage_s *image, const uint8_t verbose)
 
-   \param[in]  fileBuf      memory buffer to read from
-   \param[in]  lenFileBuf   length of memory buffer
-   \param[out] imageBuf     RAM image of file. HB!=0 indicates content
-   \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+  \param[in]  filename    full name of file to read 
+  \param      image       pointer to memory image. Must be initialized. Existing content is overwritten
+  \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
-   convert memory buffer containing intel hexfile to memory buffer. For description of
-   Intel hex file format see http://en.wikipedia.org/wiki/Intel_HEX
+  Read Intel hexfile into to memory image. For description of
+  Intel hex file format see http://en.wikipedia.org/wiki/Intel_HEX
 */
-void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose) {
+void import_ihx(const char *filename, MemoryImage_s *image, const uint8_t verbose) {
 
-  char      line[1000], tmp[1000], *p;
-  uint64_t  linecount, idx;
-  uint8_t   type, len, chkRead, chkCalc;
-  uint64_t  addr, addrStart, addrStop, numData;
-  uint64_t  addrOffset, addrJumpStart;
-  int       val;
+  FILE      *fp;
+
+  // strip path from filename for readability
+  #if defined(WIN32)
+    const char *shortname = strrchr(filename, '\\');
+  #else
+    const char *shortname = strrchr(filename, '/');
+  #endif
+  if (!shortname)
+    shortname = filename;
+  else
+    shortname++;
+
+  // print message
+  if (verbose == INFORM)
+    printf("  read '%s' ... ", shortname);
+  else if (verbose == CHATTY)
+    printf("  read Intel IHX file '%s' ... ", shortname);
+  fflush(stdout);
+
+  // open file to read
+  if (!(fp = fopen(filename, "rb"))) {
+    MemoryImage_free(image);
+    Error("Failed to open file %s", filename);
+  }
+
+
+  //=====================
+  // start data import
+  //=====================
+
+  char              line[STRLEN], tmp[STRLEN];
+  int               linecount = 0, idx, len;
+  uint8_t           type, chkRead, chkCalc;
+  MEMIMAGE_ADDR_T   address = 0; 
+  uint64_t          addrOffset, addrJumpStart;
+  int               value = 0;
 
   // avoid compiler warning (variable not yet used). See https://stackoverflow.com/questions/3599160/unused-parameter-warnings-in-c
   (void) (addrJumpStart);
 
-  // print message
-  if (verbose == INFORM)
-    printf("  convert IHX ... ");
-  else if (verbose == CHATTY)
-    printf("  convert Intel HEX file ... ");
-  fflush(stdout);
-
-
-  //////
-  // import data to memory with syntax check
-  //////
-  p          = fileBuf;
-  linecount  = 0;
-  numData    = 0;
-  addrStart  = 0xFFFFFFFFFFFFFFFF;
-  addrStop   = 0x0000000000000000;
+  // read data line by line
   addrOffset = 0x0000000000000000;
-  while ((uint64_t) (p-fileBuf) < lenFileBuf) {
-
-    // get next line. On EOF terminate
-    if (!get_line(&p, line))
-      break;
-    //printf("%s\n", line);
+  while (fgets(line, STRLEN, fp)) {
 
     // increase line counter
     linecount++;
-    chkCalc = 0x00;
-    
+
     // check 1st char (must be ':')
-    if (line[0] != ':')
+    if (line[0] != ':') {
+      MemoryImage_free(image);
       Error("Line %u in Intel hex file: line does not start with ':'", linecount);
+    }
 
     // record length (address + data + checksum)
     sprintf(tmp,"0x00");
     strncpy(tmp+2, line+1, 2);
-    sscanf(tmp, "%x", &val);
-    len = val;
-    chkCalc += len;              // increase checksum
+    sscanf(tmp, "%x", &value);
+    len = value;
+    chkCalc = len;
 
     // 16b address
-    addr = 0;
     sprintf(tmp,"0x0000");
     strncpy(tmp+2, line+3, 4);
-    sscanf(tmp, "%x", &val);
-    chkCalc += (uint8_t) (val >> 8);
-    chkCalc += (uint8_t)  val;
-    addr = (uint64_t) (val + addrOffset);	   // add offset for >64kB addresses
+    sscanf(tmp, "%x", &value);
+    chkCalc += (uint8_t) (value >> 8);
+    chkCalc += (uint8_t)  value;
+    address = (uint64_t) (value + addrOffset);	   // add offset for >64kB addresses
 
     // record type
     sprintf(tmp,"0x00");
     strncpy(tmp+2, line+7, 2);
-    sscanf(tmp, "%x", &val);
-    type = val;
-    chkCalc += type;              // increase checksum
+    sscanf(tmp, "%x", &value);
+    type = value;
+    chkCalc += type;
 
     // record contains data
     if (type==0) {
 
-      // check for buffer overflow
-      if (addr > (uint64_t) (LENIMAGEBUF-1L))
-        Error("Line %u in Intel hex file: buffer size exceeded (%dMB vs %dMB)", linecount, (int) (addr/1024L/1024L), (int) (LENIMAGEBUF/1024L/1024L));
-
-      // for printout store min/max address in file
-      if (addr < addrStart)  addrStart = addr;
-      if (addr > addrStop)   addrStop  = addr;
-
       // get data
       idx = 9;                            // start at index 9
       for (int i=0; i<len; i++) {
+        
+        // get next value
         sprintf(tmp,"0x00");
         strncpy(tmp+2, line+idx, 2);      // get next 2 chars as string
-        sscanf(tmp, "%x", &val);          // interpret as hex data
-        imageBuf[addr+i] = val | 0xFF00;  // store data byte in buffer and set high byte for "defined"
-        numData++;                        // increade byte counter
-        chkCalc += val;                   // increase checksum
+        sscanf(tmp, "%x", &value);        // interpret as hex data
+        
+        // store data byte in memory image
+        assert(MemoryImage_addData(image, address+i, (uint8_t) value));
+        
+        chkCalc += value;                 // increase checksum
         idx+=2;                           // advance 2 chars in line
       }
 
@@ -372,8 +299,10 @@ void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
       continue;
 
     // extended segment addresses not yet supported
-    else if (type==2)
+    else if (type==2) {
+      MemoryImage_free(image);
       Error("Line %u in Intel hex file: extended segment address type 2 not supported", linecount);
+    }
 
     // start segment address (only relevant for 80x86 processor, ignore here)
     else if (type==3)
@@ -384,10 +313,10 @@ void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
       idx = 13;                       // start at index 13
       sprintf(tmp,"0x0000");
       strncpy(tmp+2, line+9, 4);      // get next 4 chars as string
-      sscanf(tmp, "%x", &val);        // interpret as hex data
-      chkCalc += (uint8_t) (val >> 8);
-      chkCalc += (uint8_t)  val;
-      addrOffset = ((uint64_t) val) << 16;
+      sscanf(tmp, "%x", &value);      // interpret as hex data
+      chkCalc += (uint8_t) (value >> 8);
+      chkCalc += (uint8_t)  value;
+      addrOffset = ((uint64_t) value) << 16;
     } // type==4
 
     // start linear address records. Can be ignored, see http://www.keil.com/support/docs/1584/
@@ -395,20 +324,24 @@ void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
       continue;
 
     // unsupported record type -> error
-    else
+    else {
+      MemoryImage_free(image);
       Error("Line %u in Intel hex file: unsupported type %d", linecount, type);
+    }
 
 
     // checksum
     sprintf(tmp,"0x00");
     strncpy(tmp+2, line+idx, 2);
-    sscanf(tmp, "%x", &val);
-    chkRead = val;
+    sscanf(tmp, "%x", &value);
+    chkRead = value;
 
     // assert checksum (0xFF xor (sum over all except record type))
     chkCalc = 255 - chkCalc + 1;                 // calculate 2-complement
-    if (chkCalc != chkRead)
+    if (chkCalc != chkRead) {
+      MemoryImage_free(image);
       Error("Line %u in Intel hex file: checksum error (read 0x%02x, calc 0x%02x)", linecount, chkRead, chkCalc);
+    }
 
     // debug
     //printf("%ld\n", linecount);
@@ -416,67 +349,99 @@ void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
   } // while !EOF
 
+  //=====================
+  // end data import
+  //=====================
+
+
+  // close file again
+  fclose(fp);
+
   // print message
-  if (verbose == INFORM) {
+  if (verbose == SILENT){
     printf("done\n");
   }
+  else if (verbose == INFORM) {
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB)\n", (float) image->numEntries/1024.0/1024.0);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB)\n", (float) image->numEntries/1024.0);
+    else if (image->numEntries > 0)
+      printf("done (%dB)\n", (int) image->numEntries);
+    else
+      printf("done, no data\n");
+  }
   else if (verbose == CHATTY) {
-    if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
-    else if (numData>1024)
-      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
-    else if (numData>0)
-      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0/1024.0, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 0)
+      printf("done (%dB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (int) image->numEntries, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
     else
       printf("done, no data\n");
   }
   fflush(stdout);
 
-} // convert_ihx
+} // import_ihx()
 
 
 
 /**
-   \fn void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose)
+  \fn void import_txt(const char *filename, MemoryImage_s *image, const uint8_t verbose)
 
-   \param[in]  fileBuf      memory buffer to read from
-   \param[in]  lenFileBuf   length of memory buffer
-   \param[out] imageBuf     RAM image of file. HB!=0 indicates content
-   \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+  \param[in]  filename    full name of file to read 
+  \param      image       pointer to memory image. Must be initialized. Existing content is overwritten
+  \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
-   convert memory buffer containing plain table (address / value) to memory buffer.
-   Address and value may be decimal (plain numberst) or hexadecimal (starting with '0x').
-   Lines starting with '#' are ignored. No syntax check is performed.
+  Read plain table (address / value) file into image memory.
+  Address and value may be decimal (plain numbers) or hexadecimal (starting with '0x').
+  Lines starting with '#' are ignored. No syntax check is performed.
 */
-void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose) {
+void import_txt(const char *filename, MemoryImage_s *image, const uint8_t verbose) {
 
-  char      line[1000], *p;
-  uint64_t  linecount;
-  char      sAddr[1000], sValue[1000];
-  uint64_t  addr, addrStart, addrStop, numData;
-  int       val;
+  FILE      *fp;
+
+  // strip path from filename for readability
+  #if defined(WIN32)
+    const char *shortname = strrchr(filename, '\\');
+  #else
+    const char *shortname = strrchr(filename, '/');
+  #endif
+  if (!shortname)
+    shortname = filename;
+  else
+    shortname++;
 
   // print message
   if (verbose == INFORM)
-    printf("  convert table ... ");
+    printf("  read '%s' ... ", shortname);
   else if (verbose == CHATTY)
-    printf("  convert ASCII table file ... ");
+    printf("  read ASCII table file '%s' ... ", shortname);
   fflush(stdout);
 
+  // open file to read
+  if (!(fp = fopen(filename, "rb"))) {
+    MemoryImage_free(image);
+    Error("Failed to open file %s", filename);
+  }
 
-  //////
-  // import data to memory with syntax check
-  //////
-  p          = fileBuf;
-  linecount  = 0;
-  numData    = 0;
-  addrStart  = 0xFFFFFFFFFFFFFFFF;
-  addrStop   = 0x0000000000000000;
-  while ((uint64_t) (p-fileBuf) < lenFileBuf) {
 
-    // get next line. On EOF terminate
-    if (!get_line(&p, line))
-      break;
+  //=====================
+  // start data import
+  //=====================
+
+  char            line[STRLEN];
+  int             linecount  = 0;
+  char            sAddr[STRLEN], sValue[STRLEN];
+  unsigned long   address = 0; 
+  unsigned int    value = 0;
+
+  // read data line by line
+  while (fgets(line, STRLEN, fp)) {
 
     // increase line counter
     linecount++;
@@ -493,595 +458,207 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
     // extract address
     //////////
 
-    // address string is in hex format (starts with '0x')
-    if ((sAddr[0] == '0') && ((sAddr[1] == 'x') || (sAddr[1] == 'X'))) {
+    // if string is in hex format, read it
+    if (isHexString(sAddr))
+      sscanf(sAddr, "%" SCNx64, &address);
 
-      // check for valid characters 0-9, A-F
-      for (int i=2; i<strlen(sAddr); i++) {
-        if (!isxdigit(sAddr[i]))
-          Error("Line %u in table file: hex address '%s' contains invalid character ('%c')", linecount, sAddr, sAddr[i]);
-      }
+    // if string is in decimal format, read it
+    else if (isDecString(sAddr))
+      sscanf(sAddr, "%" SCNu64, &address);
 
-      // get address
-      sscanf(sAddr, "%" SCNx64, &addr);
-
-    } // address is in hex format
-
-    // address string is in decimal format
+    // invalid string format
     else {
-
-      // check for valid characters 0-9
-      for (int i=0; i<strlen(sAddr); i++) {
-        if (!isdigit(sAddr[i]))
-          Error("Line %u in table file: dec address '%s' contains invalid character ('%c')", linecount, sAddr, sAddr[i]);
-      }
-
-      // get address
-      sscanf(sAddr, "%" SCNu64, &addr);
-
-
-    } // extract address
+      MemoryImage_free(image);
+      Error("Line %u in table file: invalid address '%s'", linecount, sAddr);
+    }
 
 
     //////////
     // extract value
     //////////
 
-    // value string is in hex format (starts with '0x')
-    if ((sValue[0] == '0') && ((sValue[1] == 'x') || (sValue[1] == 'X'))) {
+    // if string is in hex format, read it
+    if (isHexString(sValue))
+      sscanf(sValue, "%x", &value);
 
-      // check for valid characters 0-9, A-F
-      for (int i=2; i<strlen(sValue); i++) {
-        if (!isxdigit(sValue[i]))
-          Error("Line %u in table file: hex value '%s' contains invalid character ('%c')", linecount, sValue, sValue[i]);
-      }
+    // if string is in decimal format, read it
+    else if (isDecString(sValue))
+      sscanf(sValue, "%d", &value);
 
-      // get address
-      sscanf(sValue, "%x", &val);
-
-    } // address is in hex format
-
-    // address string is in decimal format
+    // invalid string format
     else {
+      MemoryImage_free(image);
+      Error("Line %u in table file: invalid value '%s'", linecount, sValue);
+    }
 
-      // check for valid characters 0-9
-      for (int i=0; i<strlen(sValue); i++) {
-        if (!isdigit(sValue[i]))
-          Error("Line %u in table file: dec value '%s' contains invalid character ('%c')", linecount, sValue, sValue[i]);
-      }
 
-      // get address
-      sscanf(sValue, "%d", &val);
-
-    } // extract value
-
-    // check for buffer overflow
-    if (addr > (uint64_t) (LENIMAGEBUF-1L))
-      Error("Line %u in table file: buffer size exceeded (%dMB vs %dMB)", linecount, (int) (addr/1024L/1024L), (int) (LENIMAGEBUF/1024L/1024L));
-
-    // for printout store min/max address in file
-    if (addr < addrStart)  addrStart = addr;
-    if (addr > addrStop)   addrStop  = addr;
-
-    // store data byte in buffer and set high byte
-    imageBuf[addr] = (uint16_t) val | 0xFF00;
-    numData++;
+    // store data byte in memory image
+    assert(MemoryImage_addData(image, (MEMIMAGE_ADDR_T) address, (uint8_t) value));
 
   } // while !EOF
 
+  //=====================
+  // end data import
+  //=====================
+
+
+  // close file again
+  fclose(fp);
+
   // print message
-  if (verbose == INFORM) {
+  if (verbose == SILENT){
     printf("done\n");
   }
+  else if (verbose == INFORM) {
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB)\n", (float) image->numEntries/1024.0/1024.0);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB)\n", (float) image->numEntries/1024.0);
+    else if (image->numEntries > 0)
+      printf("done (%dB)\n", (int) image->numEntries);
+    else
+      printf("done, no data\n");
+  }
   else if (verbose == CHATTY) {
-    if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
-    else if (numData>1024)
-      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
-    else if (numData>0)
-      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0/1024.0, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 0)
+      printf("done (%dB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (int) image->numEntries, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
     else
       printf("done, no data\n");
   }
   fflush(stdout);
 
-} // convert_txt
+} // import_txt()
 
 
 
 /**
-   \fn void convert_bin(char *fileBuf, uint64_t lenFileBuf, uint64_t addrStart, uint16_t *imageBuf, uint8_t verbose)
+  \fn void import_bin(const char *filename, const MEMIMAGE_ADDR_T addrStart, MemoryImage_s *image, const uint8_t verbose)
 
-   \param[in]  fileBuf      memory buffer to read from
-   \param[in]  lenFileBuf   length of memory buffer
-   \param[in]  addrStart    address offset for binary import
-   \param[out] imageBuf     RAM image of file. HB!=0 indicates content
-   \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+  \param[in]  filename    full name of file to read 
+  \param[in]  addrStart   address offset for binary import
+  \param      image       pointer to memory image. Must be initialized. Existing content is overwritten
+  \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
-   convert memory buffer containing binary data to memory image. Binary data contains no absolute addresses,
-   just data. Therefor a starting address must also be provided.
+  Read binary file into memory image. Binary data contains no absolute addresses, just data.
+  Therefore a starting address must also be provided.
 */
-void convert_bin(char *fileBuf, uint64_t lenFileBuf, uint64_t addrStart, uint16_t *imageBuf, uint8_t verbose) {
+void import_bin(const char *filename, const MEMIMAGE_ADDR_T addrStart, MemoryImage_s *image, const uint8_t verbose) {
 
-  uint64_t  addrStop, numData;
+  FILE      *fp;
+
+  // strip path from filename for readability
+  #if defined(WIN32)
+    const char *shortname = strrchr(filename, '\\');
+  #else
+    const char *shortname = strrchr(filename, '/');
+  #endif
+  if (!shortname)
+    shortname = filename;
+  else
+    shortname++;
 
   // print message
   if (verbose == INFORM)
-    printf("  convert binary ... ");
+    printf("  read '%s' ... ", shortname);
   else if (verbose == CHATTY)
-    printf("  convert binary data ... ");
+    printf("  read binary file '%s' ... ", shortname);
   fflush(stdout);
 
-  // calculate number of bytes and last address
-  numData  = lenFileBuf;
-  addrStop = addrStart + numData;
-
-  // check for buffer overflow
-  if (addrStop > (uint64_t) (LENIMAGEBUF-1L))
-    Error("Binary file conversion: buffer size exceeded (%dMB vs %dMB)", (int) (addrStop/1024L/1024L), (int) (LENIMAGEBUF/1024L/1024L));
-
-  // copy data and mark as set (HB=0xFF)
-  for (uint64_t i=0; i<numData; i++) {
-    imageBuf[addrStart+i] = ((uint16_t) fileBuf[i]) | 0xFF00;
+  // open file to read
+  if (!(fp = fopen(filename, "rb"))) {
+    MemoryImage_free(image);
+    Error("Failed to open file %s", filename);
   }
+
+
+  //=====================
+  // start data import
+  //=====================
+
+  // read bytes and store to image
+  MEMIMAGE_ADDR_T  address = addrStart;
+  uint8_t  value;
+  while (!feof(fp)) {
+    
+    // read next byte
+    fread(&value, sizeof(uint8_t), 1, fp);
+
+    // store in memory image
+    if (!feof(fp))
+      assert(MemoryImage_addData(image, (MEMIMAGE_ADDR_T) address, (uint8_t) value));
+
+    // increment address
+    address++;
+
+  } // while !EOF
+
+  //=====================
+  // end data import
+  //=====================
+
+
+  // close file again
+  fclose(fp);
 
   // print message
-  if (verbose == INFORM) {
+  if (verbose == SILENT){
     printf("done\n");
   }
+  else if (verbose == INFORM) {
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB)\n", (float) image->numEntries/1024.0/1024.0);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB)\n", (float) image->numEntries/1024.0);
+    else if (image->numEntries > 0)
+      printf("done (%dB)\n", (int) image->numEntries);
+    else
+      printf("done, no data\n");
+  }
   else if (verbose == CHATTY) {
-    if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
-    else if (numData>1024)
-      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
-    else if (numData>0)
-      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0/1024.0, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 0)
+      printf("done (%dB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (int) image->numEntries, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
     else
       printf("done, no data\n");
   }
   fflush(stdout);
 
-} // convert_bin
+} // import_bin()
 
 
 
 /**
-   \fn void get_image_size(uint16_t *imageBuf, uint64_t scanStart, uint64_t scanStop, uint64_t *addrStart, uint64_t *addrStop, uint64_t *numData)
+  \fn void export_s19(char *filename, MemoryImage_s *image, const uint8_t verbose)
 
-   \param[in]  imageBuf     memory image containing data. HB!=0 indicates content
-   \param[in]  scanStart    start address for scan
-   \param[in]  scanStop     end address for scan
-   \param[out] addrStart    first address containing data (HB!=0x00)
-   \param[out] addrStop     last address containing data (HB!=0x00)
-   \param[out] numData      number of data bytes in image (HB!=0x00)
+  \param[in]  filename    name of output file
+  \param[in]  image       pointer to memory image
+  \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
-   Get fist and last address and number of bytes in memory image. Defined data is indicated by HB!=0x00
+  Export memory image to Motorola s19 hexfile. For description of
+  Motorola S19 file format see http://en.wikipedia.org/wiki/SREC_(file_format)
 */
-void get_image_size(uint16_t *imageBuf, uint64_t scanStart, uint64_t scanStop, uint64_t *addrStart, uint64_t *addrStop, uint64_t *numData) {
-
-  // simple checks of address window
-  if (scanStart > scanStop)
-    Error("scan start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, scanStart, scanStop);
-  if (scanStart > LENIMAGEBUF)
-    Error("scan start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, scanStart, LENIMAGEBUF);
-  if (scanStop > LENIMAGEBUF)
-    Error("scan end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, scanStop, LENIMAGEBUF);
-
-  // loop though image and check for defined data (HB!=0x00)
-  *addrStart = 0xFFFFFFFFFFFFFFFF;
-  *addrStop  = 0x0000000000000000;
-  *numData   = 0;
-  for (uint64_t addr=scanStart; addr<=scanStop; addr++) {
-
-    // entry contains data (HB!=0x00)
-    if (imageBuf[addr] & 0xFF00) {
-      if (addr < *addrStart) *addrStart = addr;
-      if (addr > *addrStop)  *addrStop  = addr;
-      (*numData)++;
-    }
-
-  } // loop over image
-
-} // get_image_size
-
-
-
-/**
-   \fn void fill_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t value, uint8_t verbose)
-
-   \param      imageBuf     memory image containing data. HB!=0 indicates content
-   \param[in]  addrStart    starting address of filling window
-   \param[in]  addrStop     topmost address of filling window
-   \param[in]  value        value to write
-   \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
-
-   Fill memory image in specified window with specified value and set status to "defined" (HB=0xFF)
-*/
-void fill_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t value, uint8_t verbose) {
-
-  uint64_t  numFilled;
-
-  // print message
-  if (verbose == INFORM)
-    printf("  fill image ... ");
-  else if (verbose == CHATTY)
-    printf("  fill memory image ... ");
-  fflush(stdout);
-
-  // simple checks of address window
-  if (addrStart > addrStop)
-    Error("start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
-  if (addrStart > (uint64_t) LENIMAGEBUF)
-    Error("start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStart, LENIMAGEBUF);
-  if (addrStop > (uint64_t) LENIMAGEBUF)
-    Error("end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStop, LENIMAGEBUF);
-
-  // loop over memory image and fill all data inside specified range
-  numFilled = 0;
-  for (uint64_t addr = addrStart; addr <= addrStop; addr++) {
-    numFilled++;                                      // count filled bytes for output below
-    imageBuf[addr] = ((uint16_t) value) | 0xFF00;     // HB=0x00 indicates data undefined, LB contains data
-  }
-
-  // print message
-  if (verbose == INFORM) {
-    printf("done\n");
-  }
-  else if (verbose == CHATTY) {
-    if (numFilled>1024*1024)
-      printf("done, filled %1.1fMB with 0x%02x within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numFilled/1024.0/1024.0, value, addrStart, addrStop);
-    else if (numFilled>1024)
-      printf("done, filled %1.1fkB with 0x%02x within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numFilled/1024.0, value, addrStart, addrStop);
-    else if (numFilled>0)
-      printf("done, filled %dB with 0x%02x within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (int) numFilled, value, addrStart, addrStop);
-    else
-      printf("done, no data filled\n");
-  }
-  fflush(stdout);
-
-} // fill_image
-
-
-
-/**
-   \fn void fill_image_random(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose)
-
-   \param      imageBuf     memory image containing data. HB!=0 indicates content
-   \param[in]  addrStart    starting address of filling window
-   \param[in]  addrStop     topmost address of filling window
-   \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
-
-   Fill memory image in specified window with random values in 0..255 and set status to "defined" (HB=0xFF)
-*/
-void fill_image_random(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose) {
-
-  uint64_t  numFilled;
-
-  // print message
-  if (verbose == INFORM)
-    printf("  random fill image ... ");
-  else if (verbose == CHATTY)
-    printf("  random fill memory image ... ");
-  fflush(stdout);
-
-  // simple checks of scan window
-  if (addrStart > addrStop)
-    Error("start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
-  if (addrStart > (uint64_t) LENIMAGEBUF)
-    Error("start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStart, LENIMAGEBUF);
-  if (addrStop > (uint64_t) LENIMAGEBUF)
-    Error("end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStop, LENIMAGEBUF);
-
-  // set random seed
-  srand(time(NULL));
-
-  // loop over memory image and fill all data inside specified range
-  numFilled = 0;
-  for (uint64_t addr = addrStart; addr <= addrStop; addr++) {
-    numFilled++;                                      // count filled bytes for output below
-    uint8_t value = (uint8_t) (rand());
-    imageBuf[addr] = ((uint16_t) value) | 0xFF00;     // HB=0x00 indicates data undefined, LB contains data
-  }
-
-  // print message
-  if (verbose == INFORM) {
-    printf("done\n");
-  }
-  else if (verbose == CHATTY) {
-    if (numFilled>1024*1024)
-      printf("done, filled %1.1fMB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numFilled/1024.0/1024.0, addrStart, addrStop);
-    else if (numFilled>1024)
-      printf("done, filled %1.1fkB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numFilled/1024.0, addrStart, addrStop);
-    else if (numFilled>0)
-      printf("done, filled %dB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (int) numFilled, addrStart, addrStop);
-    else
-      printf("done, no data filled\n");
-  }
-  fflush(stdout);
-
-} // fill_image_random
-
-
-
-/**
-   \fn void clip_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose)
-
-   \param      imageBuf     memory image containing data. HB!=0 indicates content
-   \param[in]  addrStart    starting address of clipping window
-   \param[in]  addrStop     topmost address of clipping window
-   \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
-
-   Clip memory image to specified window, i.e. reset all data outside specified window to "undefined" (HB=0x00)
-*/
-void clip_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose) {
-
-  uint64_t  numCleared;
-
-  // print message
-  if (verbose == INFORM)
-    printf("  clip image ... ");
-  else if (verbose == CHATTY)
-    printf("  clip memory image ... ");
-  fflush(stdout);
-
-  // simple checks of address window
-  if (addrStart > addrStop)
-    Error("start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
-  if (addrStart > (uint64_t) LENIMAGEBUF)
-    Error("start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStart, LENIMAGEBUF);
-  if (addrStop > (uint64_t) LENIMAGEBUF)
-    Error("end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStop, LENIMAGEBUF);
-
-  // loop over memory image and clear all data outside specified clipping window
-  numCleared = 0;
-  for (uint64_t addr = 0; addr < (uint64_t)LENIMAGEBUF; addr++) {
-    if ((addr < addrStart) || (addr > addrStop)) {
-      if (imageBuf[addr] & 0xFF00)
-         numCleared++;                 // count deleted bytes for output below
-      imageBuf[addr] = 0x0000;         // HB=0x00 indicates data undefined, LB contains data
-    }
-  }
-
-  // print message
-  if (verbose == INFORM) {
-    printf("done\n");
-  }
-  else if (verbose == CHATTY) {
-    if (numCleared>1024*1024)
-      printf("done, clipped %1.1fMB outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0/1024.0, addrStart, addrStop);
-    else if (numCleared>1024)
-      printf("done, clipped %1.1fkB outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0, addrStart, addrStop);
-    else if (numCleared>0)
-      printf("done, clipped %" PRId64 "B outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", numCleared, addrStart, addrStop);
-    else
-      printf("done, no data cleared\n");
-  }
-  fflush(stdout);
-
-} // clip_image
-
-
-
-/**
-   \fn void cut_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose)
-
-   \param      imageBuf     memory image containing data. HB!=0 indicates content
-   \param[in]  addrStart    starting address of section to clear
-   \param[in]  addrStop     topmost address of section to clear
-   \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
-
-   Cut data range from memory image, i.e. reset all data inside specified window to "undefined" (HB=0x00)
-*/
-void cut_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose) {
-
-  uint64_t  numCleared;
-
-  // print message
-  if (verbose == INFORM)
-    printf("  clear image ... ");
-  else if (verbose == CHATTY)
-    printf("  clear memory image ... ");
-  fflush(stdout);
-
-  // simple checks of address window
-  if (addrStart > addrStop)
-    Error("start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
-  if (addrStart > (uint64_t) LENIMAGEBUF)
-    Error("start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStart, LENIMAGEBUF);
-  if (addrStop > (uint64_t) LENIMAGEBUF)
-    Error("end address 0x%" PRIx64 " exceeds buffer size 0x" PRIx64, addrStop, LENIMAGEBUF);
-
-  // loop over memory image and clear all data inside specified window
-  numCleared = 0;
-  for (uint64_t addr=0; addr<(uint64_t)LENIMAGEBUF; addr++) {
-    if ((addr >= addrStart) && (addr <= addrStop)) {
-      if (imageBuf[addr] & 0xFF00)
-         numCleared++;                 // count deleted bytes for output below
-      imageBuf[addr] = 0x0000;         // HB=0x00 indicates data undefined, LB contains data
-    }
-  }
-
-  // print message
-  if (verbose == INFORM) {
-    printf("done\n");
-  }
-  else if (verbose == CHATTY) {
-    if (numCleared>1024*1024)
-      printf("done, cut %1.1fMB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0/1024.0, addrStart, addrStop);
-    else if (numCleared>1024)
-      printf("done, cut %1.1fkB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0, addrStart, addrStop);
-    else if (numCleared>0)
-      printf("done, cut %" PRId64 "B within 0x%" PRIx64 " - 0x%" PRIx64 "\n", numCleared, addrStart, addrStop);
-    else
-      printf("done, no data cut\n");
-  }
-  fflush(stdout);
-
-} // cut_image
-
-
-
-/**
-   \fn void copy_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, uint64_t destinationStart, uint8_t verbose)
-
-   \param      imageBuf          memory image containing data. HB!=0 indicates content
-   \param[in]  sourceStart       starting address to copy from
-   \param[in]  sourceStart       last address to copy from
-   \param[in]  destinationStart  starting address to copy to
-   \param[in]  verbose           verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
-
-   Copy data section within image to new address. Data at old address is maintained (if sections don't overlap).
-*/
-void copy_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, uint64_t destinationStart, uint8_t verbose) {
-
-  uint64_t  numCopied;
-
-  // print message
-  if (verbose == INFORM)
-    printf("  copy data ... ");
-  else if (verbose == CHATTY)
-    printf("  copy image data ... ");
-  fflush(stdout);
-
-  // simple checks of address window
-  if (sourceStart > sourceStop)
-    Error("source start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, sourceStart, sourceStop);
-  if (sourceStart > (uint64_t) LENIMAGEBUF)
-    Error("source start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, sourceStart, LENIMAGEBUF);
-  if (sourceStop > (uint64_t) LENIMAGEBUF)
-    Error("source end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, sourceStop, LENIMAGEBUF);
-  if (destinationStart > (uint64_t) LENIMAGEBUF)
-    Error("destination start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, destinationStart, LENIMAGEBUF);
-  if (destinationStart+(sourceStop-sourceStart+1) > (uint64_t) LENIMAGEBUF)
-    Error("destination end address 0x%" PRIx64 " exceeds buffer size 0x" PRIx64, destinationStart+(sourceStop-sourceStart+1), LENIMAGEBUF);
-
-  // get number of data to copy (HB!=0x00)
-  numCopied = 0;
-  for (uint64_t i=sourceStart; i<=sourceStop; i++) {
-    if (imageBuf[i] & 0xFF00)
-      numCopied++;
-  }
-
-  // copy data within image
-  memcpy((void*) &(imageBuf[destinationStart]), (void*) &(imageBuf[sourceStart]), (sourceStop-sourceStart+1)*sizeof(*imageBuf));
-
-
-  // print message
-  if (verbose == INFORM) {
-    printf("done\n");
-  }
-  else if (verbose == CHATTY) {
-    if (numCopied>1024*1024)
-      printf("done, copied %1.1fMB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numCopied/1024.0/1024.0, sourceStart, sourceStop, destinationStart);
-    else if (numCopied>1024)
-      printf("done, copied %1.1fkB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numCopied/1024.0, sourceStart, sourceStop, destinationStart);
-    else if (numCopied>0)
-      printf("done, copied %" PRId64 "B from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", numCopied, sourceStart, sourceStop, destinationStart);
-    else
-      printf("done, no data copied\n");
-  }
-  fflush(stdout);
-
-} // copy_image
-
-
-
-/**
-   \fn void move_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, uint64_t destinationStart, uint8_t verbose)
-
-   \param      imageBuf          memory image containing data. HB!=0 indicates content
-   \param[in]  sourceStart       starting address to move from
-   \param[in]  sourceStart       last address to move from
-   \param[in]  destinationStart  starting address to move to
-   \param[in]  verbose           verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
-
-   Move data section within image to new address. Data at old address is cleared.
-*/
-void move_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, uint64_t destinationStart, uint8_t verbose) {
-
-  uint64_t  numMoved;
-  uint16_t  *tmpImageBuf;   // temporary buffer
-
-  // print message
-  if (verbose == INFORM)
-    printf("  move data ... ");
-  else if (verbose == CHATTY)
-    printf("  move image data ... ");
-  fflush(stdout);
-
-  // simple checks of address window
-  if (sourceStart > sourceStop)
-    Error("source start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, sourceStart, sourceStop);
-  if (sourceStart > (uint64_t) LENIMAGEBUF)
-    Error("source start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, sourceStart, LENIMAGEBUF);
-  if (sourceStop > (uint64_t) LENIMAGEBUF)
-    Error("source end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, sourceStop, LENIMAGEBUF);
-  if (destinationStart > (uint64_t) LENIMAGEBUF)
-    Error("destination start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, destinationStart, LENIMAGEBUF);
-  if (destinationStart+(sourceStop-sourceStart+1) > (uint64_t) LENIMAGEBUF)
-    Error("destination end address 0x%" PRIx64 " exceeds buffer size 0x" PRIx64, destinationStart+(sourceStop-sourceStart+1), LENIMAGEBUF);
-
-  // get number of data to move (HB!=0x00)
-  numMoved = 0;
-  for (uint64_t i=sourceStart; i<=sourceStop; i++) {
-    if (imageBuf[i] & 0xFF00)
-      numMoved++;
-  }
-
-  // allocate temporary buffer (required for overlapping windows
-  if (!(tmpImageBuf = malloc(LENIMAGEBUF * sizeof(*tmpImageBuf))))
-    Error("Cannot allocate image buffer, try reducing LENIMAGEBUF");
-
-  // copy data from image to temporary buffer
-  memcpy((void*) &(tmpImageBuf[sourceStart]), (void*) &(imageBuf[sourceStart]), (sourceStop-sourceStart+1)*sizeof(*imageBuf));
-
-  // remove old data from image
-  cut_image(imageBuf, sourceStart, sourceStop, MUTE);
-
-  // copy data from temporary buffer to image
-  memcpy((void*) &(imageBuf[destinationStart]), (void*) &(tmpImageBuf[sourceStart]), (sourceStop-sourceStart+1)*sizeof(*imageBuf));
-
-  // release temporary buffer again
-  free(tmpImageBuf);
-
-  // print message
-  if (verbose == INFORM) {
-    printf("done\n");
-  }
-  else if (verbose == CHATTY) {
-    if (numMoved>1024*1024)
-      printf("done, moved %1.1fkB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numMoved/1024.0/1024.0, sourceStart, sourceStop, destinationStart);
-    else if (numMoved>1024)
-      printf("done, moved %1.1fkB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numMoved/1024.0, sourceStart, sourceStop, destinationStart);
-    else if (numMoved>0)
-      printf("done, moved %" PRId64 "B from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", numMoved, sourceStart, sourceStop, destinationStart);
-    else
-      printf("done, no data moved\n");
-  }
-  fflush(stdout);
-
-} // move_image
-
-
-
-/**
-   \fn void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose)
-
-   \param[in]  filename    name of output file
-   \param[in]  imageBuf    memory image. HB!=0 indicates content. Index 0 corresponds to addrStart
-   \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
-
-   export RAM image to file in s19 hexfile format. For description of
-   Motorola S19 file format see http://en.wikipedia.org/wiki/SREC_(file_format)
-*/
-void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
+void export_s19(char *filename, MemoryImage_s *image, const uint8_t verbose) {
 
   FILE      *fp;               // file pointer
-  const int maxLine = 32;      // max. length of data line
-  uint8_t   data;              // value to store
-  uint32_t  chk;               // checksum
-  uint64_t  addr, addrStart, addrStop, numData;  // image data range
   char      *shortname;        // filename w/o path
+  const int maxLine = 32;      // max. length of data line
+  uint64_t  address, addrStart, addrStop;  // image address range
+  size_t    idx;
+  uint8_t   value;             // image data value
+  uint32_t  chk;               // checksum
 
   // strip path from filename for readability
   #if defined(WIN32)
@@ -1103,33 +680,45 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     printf("  export Motorola S19 file '%s' ... ", shortname);
   fflush(stdout);
 
+  // get min/max addresses in memory image
+  if (image->numEntries > 0) {
+    addrStart = image->memoryEntries[0].address;
+    addrStop  = image->memoryEntries[image->numEntries-1].address;
+  }
+  else {
+    addrStart = 0x01;   // make start>stop to skip below for loop
+    addrStop  = 0x00;
+  }
+
   // open output file
   fp=fopen(filename,"wb");
-  if (!fp)
+  if (!fp) {
+    MemoryImage_free(image);
     Error("Failed to create file %s", filename);
+  }
 
   // start with dummy header line to avoid 'srecord' warning
   fprintf(fp, "S00F000068656C6C6F202020202000003C\n");
 
-  // get min/max addresses and number of bytes (HB!=0x00) in image
-  get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
-
   // store in lines of 32B
-  addr = addrStart;
-  while (addr <= addrStop) {
+  address = addrStart;
+  while (address <= addrStop) {
 
-    // find next data byte (=start address of next block)
-    while (((imageBuf[addr] & 0xFF00) == 0) && (addr <= addrStop))
-      addr++;
-    uint64_t addrBlock = addr;
+    // find next valid data byte (=start address of next block)
+    while ((!MemoryImage_getData(image, address, &value)) && (address <= addrStop))
+    {
+      MemoryImage_findAddress(image, address+1, &idx);
+      address = image->memoryEntries[idx].address;
+    }
+    uint64_t addrBlock = address;
 
     // end address reached -> done
-    if (addr > addrStop)
+    if (address > addrStop)
       break;
 
     // set length of next data block: max 128B and align with 128 for speed (see UM0560 section 3.4)
     int lenBlock = 1;
-    while ((lenBlock < maxLine) && ((addr+lenBlock) <= addrStop) && (imageBuf[addr+lenBlock] & 0xFF00) && ((addr+lenBlock) % maxLine)) {
+    while ((lenBlock < maxLine) && ((address+lenBlock) <= addrStop) && (MemoryImage_getData(image, address+lenBlock, &value)) && ((address+lenBlock) % maxLine)) {
       lenBlock++;
     }
     //printf("0x%04x   0x%04x   %d\n", addrBlock, addrBlock+lenBlock-1, lenBlock);
@@ -1153,15 +742,15 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
       chk = (uint8_t) (lenBlock+5) + (uint8_t) addrBlock + (uint8_t) (addrBlock >> 8) + (uint8_t) (addrBlock >> 16) + (uint8_t) (addrBlock >> 24);
     }
     for (int j=0; j<lenBlock; j++) {
-      data = (uint8_t) (imageBuf[addrBlock+j] & 0x00FF);
-      chk += data;
-      fprintf(fp, "%02X", data);
+      MemoryImage_getData(image, addrBlock+j, &value);
+      chk += value;
+      fprintf(fp, "%02X", value);
     }
     chk = ((chk & 0xFF) ^ 0xFF);
     fprintf(fp, "%02X\n", chk);
 
     // go to next potential block
-    addr += lenBlock;
+    address += lenBlock;
 
   } // loop over address range
 
@@ -1178,16 +767,29 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   fclose(fp);
 
   // print message
-  if ((verbose == SILENT) || (verbose == INFORM)) {
+  if (verbose == SILENT){
     printf("done\n");
   }
+  else if (verbose == INFORM) {
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB)\n", (float) image->numEntries/1024.0/1024.0);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB)\n", (float) image->numEntries/1024.0);
+    else if (image->numEntries > 0)
+      printf("done (%dB)\n", (int) image->numEntries);
+    else
+      printf("done, no data\n");
+  }
   else if (verbose == CHATTY) {
-    if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
-    if (numData>1024)
-      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
-    else if (numData>0)
-      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0/1024.0, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 0)
+      printf("done (%dB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (int) image->numEntries, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
     else
       printf("done, no data\n");
   }
@@ -1198,23 +800,25 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
 
 /**
-   \fn void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose)
+  \fn void export_ihx(char *filename, MemoryImage_s *image, const uint8_t verbose);
 
-   \param[in]  filename    name of output file
-   \param[in]  imageBuf    memory image. HB!=0 indicates content. Index 0 corresponds to addrStart
-   \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+  \param[in]  filename    name of output file
+  \param[in]  image       pointer to memory image
+  \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
-   export RAM image to file in Intel hexfile format. For description of
-   Intel hex file format see http://en.wikipedia.org/wiki/Intel_HEX
+  Export memory image to Intel hexfile. For description of
+  Intel hex file format see http://en.wikipedia.org/wiki/Intel_HEX
 */
 
-void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
+void export_ihx(char *filename, MemoryImage_s *image, const uint8_t verbose) {
+
   FILE      *fp;               // file pointer
-  const int maxLine = 32;      // max. length of data line
-  uint8_t   data;              // value to store
-  uint8_t   chk;               // checksum
-  uint64_t  addrStart, addrStop, numData;  // image data range
   char      *shortname;        // filename w/o path
+  const int maxLine = 32;      // max. length of data line
+  uint64_t  address, addrStart, addrStop;  // image address range
+  size_t    idx;
+  uint8_t   value;             // image data value
+  uint8_t   chk;               // checksum
   uint8_t   useEla = 0;        // whether ELA records needed
   int64_t   addrEla;           // ELA record address
 
@@ -1238,13 +842,22 @@ void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     printf("  export Intel HEX file '%s' ... ", shortname);
   fflush(stdout);
 
+  // get min/max addresses in memory image
+  if (image->numEntries > 0) {
+    addrStart = image->memoryEntries[0].address;
+    addrStop  = image->memoryEntries[image->numEntries-1].address;
+  }
+  else {
+    addrStart = 0x01;   // make start>stop to skip below for loop
+    addrStop  = 0x00;
+  }
+
   // open output file
   fp=fopen(filename,"wb");
-  if (!fp)
+  if (!fp) {
+    MemoryImage_free(image);
     Error("Failed to create file %s", filename);
-
-  // get min/max addresses and number of bytes (HB!=0x00) in image
-  get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
+  }
 
   // use ELA records if address range is greater than 16 bits
   if(addrStop > 0xFFFF) {
@@ -1252,18 +865,23 @@ void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     addrEla = -1;
   }
 
-  uint64_t addr = addrStart;
-  while(addr <= addrStop) {
-    // find next data byte (=start address of next block)
-    while(((imageBuf[addr] & 0xFF00) == 0) && (addr <= addrStop)) addr++;
-    uint64_t addrBlock = addr;
+  address = addrStart;
+  while(address <= addrStop) {
+
+    // find next valid data byte (=start address of next block)
+    while ((!MemoryImage_getData(image, address, &value)) && (address <= addrStop))
+    {
+      MemoryImage_findAddress(image, address+1, &idx);
+      address = image->memoryEntries[idx].address;
+    }
+    uint64_t addrBlock = address;
 
     // end address reached -> done
-    if(addr > addrStop) break;
+    if(address > addrStop) break;
 
     // set length of next data block: max 128B and align with 128 for speed (see UM0560 section 3.4)
     uint8_t lenBlock = 1;
-    while((lenBlock < maxLine) && ((addr+lenBlock) <= addrStop) && (imageBuf[addr+lenBlock] & 0xFF00) && ((addr+lenBlock) % maxLine)) {
+    while((lenBlock < maxLine) && ((address+lenBlock) <= addrStop) && (MemoryImage_getData(image, address+lenBlock, &value)) && ((address+lenBlock) % maxLine)) {
       lenBlock++;
     }
 
@@ -1278,15 +896,16 @@ void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     fprintf(fp, ":%02X%04X00", lenBlock, (uint16_t)addrBlock);
     chk = lenBlock + (uint8_t)addrBlock + (uint8_t)(addrBlock >> 8);
     for(uint8_t j = 0; j < lenBlock; j++) {
-      data = (uint8_t)(imageBuf[addrBlock+j] & 0x00FF);
-      chk += data;
-      fprintf(fp, "%02X", data);
+      MemoryImage_getData(image, addrBlock+j, &value);
+      chk += value;
+      fprintf(fp, "%02X", value);
     }
     chk = ~chk + 1;
     fprintf(fp, "%02X\n", chk);
 
     // go to next potential block
-    addr += lenBlock;
+    address += lenBlock;
+
   } // loop over address range
 
   // output end-of-file record
@@ -1297,37 +916,50 @@ void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   fclose(fp);
 
   // print message
-  if ((verbose == SILENT) || (verbose == INFORM)) {
+  if (verbose == SILENT){
     printf("done\n");
   }
+  else if (verbose == INFORM) {
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB)\n", (float) image->numEntries/1024.0/1024.0);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB)\n", (float) image->numEntries/1024.0);
+    else if (image->numEntries > 0)
+      printf("done (%dB)\n", (int) image->numEntries);
+    else
+      printf("done, no data\n");
+  }
   else if (verbose == CHATTY) {
-    if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
-    if (numData>1024)
-      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
-    else if (numData>0)
-      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0/1024.0, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 0)
+      printf("done (%dB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (int) image->numEntries, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
     else
       printf("done, no data\n");
   }
   fflush(stdout);
+
 } // export_ihx
 
 
 
 /**
-   \fn void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose)
+  void export_txt(char *filename, MemoryImage_s *image, const uint8_t verbose)
 
-   \param[in]  filename    name of output file or stdout ('console')
-   \param[in]  imageBuf    memory image. HB!=0 indicates content. Index 0 corresponds to addrStart
-   \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+  \param[in]  filename    name of output file or stdout ('console')
+  \param[in]  image       pointer to memory image
+  \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
-   export RAM image to file with plain text table (hex addr / hex data)
+  Export memory image to file with plain text table (hex addr / hex data)
 */
-void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
+void export_txt(char *filename, MemoryImage_s *image, const uint8_t verbose) {
 
   FILE      *fp;               // file pointer
-  uint64_t  addrStart, addrStop, numData;  // image data range
   char      *shortname;        // filename w/o path
   bool      flagFile = true;   // output to file or console?
 
@@ -1366,8 +998,10 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
     // open output file
     fp=fopen(filename,"wb");
-    if (!fp)
+    if (!fp) {
+      MemoryImage_free(image);
       Error("Failed to create file %s", filename);
+    }
 
   } // output to file
 
@@ -1377,17 +1011,12 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   else
     fprintf(fp, "    address	value\n");
 
-  // get min/max addresses and number of bytes (HB!=0x00) in image
-  get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
-
-  // output each defined value (HB!=0x00) in a separate line (addr \t value)
-  for (uint64_t i=addrStart; i<=addrStop; i++) {
-    if (imageBuf[i] & 0xFF00) {
-      if (!flagFile)
-        fprintf(fp,"    ");
-      fprintf(fp, "0x%" PRIx64 "	0x%02x\n", i, (imageBuf[i] & 0xFF));
-      //printf("0x%" PRIx64 "   0x%04x   0x%02x\n", i, imageBuf[i], (imageBuf[i] & 0xFF));
-    }
+  // loop over image and output address, data in hex format
+  for (size_t i = 0; i < image->numEntries; i++) {
+    if (flagFile)
+      fprintf(fp, "0x%" PRIx64 "	0x%02x\n", (long unsigned int) image->memoryEntries[i].address, (int) image->memoryEntries[i].data & 0xFF);
+    else
+      fprintf(fp, "    0x%" PRIx64 "	0x%02x\n", (long unsigned int) image->memoryEntries[i].address, (int) image->memoryEntries[i].data & 0xFF);      
   }
 
   // close output file
@@ -1398,16 +1027,29 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     fprintf(fp,"  ");
 
   // print message
-  if ((verbose == SILENT) || (verbose == INFORM)) {
+  if (verbose == SILENT){
     printf("done\n");
   }
+  else if (verbose == INFORM) {
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB)\n", (float) image->numEntries/1024.0/1024.0);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB)\n", (float) image->numEntries/1024.0);
+    else if (image->numEntries > 0)
+      printf("done (%dB)\n", (int) image->numEntries);
+    else
+      printf("done, no data\n");
+  }
   else if (verbose == CHATTY) {
-    if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
-    if (numData>1024)
-      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
-    else if (numData>0)
-      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0/1024.0, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 0)
+      printf("done (%dB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (int) image->numEntries, 
+        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
     else
       printf("done, no data\n");
   }
@@ -1418,21 +1060,21 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
 
 /**
-   \fn void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose)
+   \fn void export_bin(char *filename, MemoryImage_s *image, const uint8_t verbose)
 
    \param[in]  filename    name of output file
-   \param[in]  imageBuf    memory image. HB!=0 indicates content
+   \param[in]  image       pointer to memory image
    \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
-   export RAM image to binary file. Note that start address is not stored, and that
+   Export memory image to binary file. Note that start address is not stored, and that
    binary format does not allow for "holes" in the file, i.e. undefined data is stored as 0x00.
 */
-void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
+void export_bin(char *filename, MemoryImage_s *image, const uint8_t verbose) {
 
-  FILE      *fp;               // file pointer
-  uint64_t  addrStart, addrStop, numData;  // address range to consider
-  uint64_t  countByte;         // number of actually exported bytes
-  uint8_t   val;
+  FILE      *fp;                  // file pointer
+  uint64_t  addrStart, addrStop;  // address range to export
+  uint64_t  countByte;            // number of actually exported bytes
+  uint8_t   value;
 
   // strip path from filename for readability
   #if defined(WIN32)
@@ -1451,26 +1093,32 @@ void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   else if (verbose == INFORM)
     printf("  export binary '%s' ... ", shortname);
   else if (verbose == CHATTY)
-    printf("  export binary to file '%s' ... ", shortname);
+    printf("  export binary file '%s' ... ", shortname);
   fflush(stdout);
 
   // open output file
   fp=fopen(filename,"wb");
-  if (!fp)
+  if (!fp) {
+    MemoryImage_free(image);
     Error("Failed to create file %s", filename);
+  }
 
-  // get address range containing data (HB!=0x00)
-  get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
+  // get address range including "holes"
+  if (image->numEntries > 0) {
+    addrStart = image->memoryEntries[0].address;
+    addrStop  = image->memoryEntries[image->numEntries-1].address;
+  }
+  else {
+    addrStart = 0x01;   // make start>stop to skip below for loop
+    addrStop  = 0x00;
+  }
 
   // store every value in address range. Undefined values are set to 0x00
   countByte = 0;
-  for (uint64_t addr=addrStart; addr<=addrStop; addr++) {
-    if (imageBuf[addr] & 0xFF00)
-      val = (uint8_t) (imageBuf[addr] & 0x00FF);
-    else
-      val = 0x00;
-    fwrite(&val,sizeof(val), 1, fp); // write byte per byte (image is 16-bit)
-    //printf("0x%04x   0x%04x   0x%02x\n", addr, imageBuf[addr], (imageBuf[addr] & 0xFF));
+  for (uint64_t address=addrStart; address<=addrStop; address++) {
+    if (!MemoryImage_getData(image, address, &value))
+      value = 0x00;
+    fwrite(&value,sizeof(value), 1, fp); // write byte per byte (image is 16-bit)
     countByte++;
   }
 
@@ -1479,21 +1127,355 @@ void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   fclose(fp);
 
   // print message
-  if ((verbose == SILENT) || (verbose == INFORM)) {
+  if (verbose == SILENT){
     printf("done\n");
   }
+  else if (verbose == INFORM) {
+    if (countByte > 1024*1024)
+      printf("done (%1.1fMB)\n", (float) countByte/1024.0/1024.0);
+    else if (countByte > 1024)
+      printf("done (%1.1fkB)\n", (float) countByte/1024.0);
+    else if (countByte > 0)
+      printf("done (%dB)\n", (int) countByte);
+    else
+      printf("done, no data\n");
+  }
   else if (verbose == CHATTY) {
-    if (countByte>1024*1024)
-      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) countByte/1024.0/1024.0, addrStart, addrStop);
-    else if (countByte>1024)
-      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) countByte/1024.0, addrStart, addrStop);
-    else if (countByte>0)
-      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) countByte, addrStart, addrStop);
+    if (countByte > 1024*1024)
+      printf("done (%1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) countByte/1024.0/1024.0, 
+        (long unsigned int) addrStart, (long unsigned int) addrStop);
+    else if (countByte > 1024)
+      printf("done (%1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) countByte/1024.0, 
+        (long unsigned int) addrStart, (long unsigned int) addrStop);
+    else if (countByte > 0)
+      printf("done (%dB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (int) countByte, 
+        (long unsigned int) addrStart, (long unsigned int) addrStop);
     else
       printf("done, no data\n");
   }
   fflush(stdout);
 
 } // export_bin
+
+
+
+/**
+  \fn void fill_image(MemoryImage_s *image, const MEMIMAGE_ADDR_T addrStart, const MEMIMAGE_ADDR_T addrStop, const uint8_t value, const uint8_t verbose)
+
+  \param      image       pointer to memory image. Must be initialized. Existing content is overwritten
+  \param[in]  addrStart   starting address of filling window
+  \param[in]  addrStop    topmost address of filling window
+  \param[in]  value       value to write
+  \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+
+  Fill memory image in specified window with specified value
+*/
+void fill_image(MemoryImage_s *image, const MEMIMAGE_ADDR_T addrStart, const MEMIMAGE_ADDR_T addrStop, const uint8_t value, const uint8_t verbose) {
+
+  uint64_t  numFilled = addrStop-addrStart+1;
+
+  // print message
+  if (verbose == INFORM)
+    printf("  fill image ... ");
+  else if (verbose == CHATTY)
+    printf("  fill memory image ... ");
+  fflush(stdout);
+
+  // simple checks of address window
+  if (addrStart > addrStop) {
+    MemoryImage_free(image);
+    Error("start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
+  }
+
+  // loop over memory image and fill all data inside specified range
+  MemoryImage_fillValue(image, addrStart, addrStop, value);
+
+  // print message
+  if (verbose == INFORM) {
+    printf("done\n");
+  }
+  else if (verbose == CHATTY) {
+    if (numFilled>1024*1024)
+      printf("done, filled %1.1fMB with 0x%02x in [0x%" PRIx64 "; 0x%" PRIx64 "]\n", (float) numFilled/1024.0/1024.0, value, 
+        (long unsigned int) addrStart, (long unsigned int) addrStop);
+    else if (numFilled>1024)
+      printf("done, filled %1.1fkB with 0x%02x in [0x%" PRIx64 "; 0x%" PRIx64 "]\n", (float) numFilled/1024.0, value, 
+        (long unsigned int) addrStart, (long unsigned int) addrStop);
+    else if (numFilled>0)
+      printf("done, filled %dB with 0x%02x in [0x%" PRIx64 "; 0x%" PRIx64 "]\n", (int) numFilled, value, 
+        (long unsigned int) addrStart, (long unsigned int) addrStop);
+    else
+      printf("done, no data filled\n");
+  }
+  fflush(stdout);
+
+} // fill_image
+
+
+
+/**
+  \fn void fill_image_random(MemoryImage_s *image, const MEMIMAGE_ADDR_T addrStart, const MEMIMAGE_ADDR_T addrStop, const uint8_t verbose)
+
+  \param      image       pointer to memory image. Must be initialized. Existing content is overwritten
+  \param[in]  addrStart   starting address of filling window
+  \param[in]  addrStop    topmost address of filling window
+  \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+
+  Fill memory image in specified window with random values in 0..255
+*/
+void fill_image_random(MemoryImage_s *image, const MEMIMAGE_ADDR_T addrStart, const MEMIMAGE_ADDR_T addrStop, const uint8_t verbose) {
+
+  uint64_t  numFilled = addrStop-addrStart+1;
+
+  // print message
+  if (verbose == INFORM)
+    printf("  random fill image ... ");
+  else if (verbose == CHATTY)
+    printf("  random fill memory image ... ");
+  fflush(stdout);
+
+  // simple checks of address window
+  if (addrStart > addrStop) {
+    MemoryImage_free(image);
+    Error("start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
+  }
+
+  // loop over memory image and fill all data inside specified range
+  MemoryImage_fillRandom(image, addrStart, addrStop);
+
+  // print message
+  if (verbose == INFORM) {
+    printf("done\n");
+  }
+  else if (verbose == CHATTY) {
+    if (numFilled>1024*1024)
+      printf("done, filled %1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "]\n", (float) numFilled/1024.0/1024.0, 
+        (long unsigned int) addrStart, (long unsigned int) addrStop);
+    else if (numFilled>1024)
+      printf("done, filled %1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "]\n", (float) numFilled/1024.0, 
+        (long unsigned int) addrStart, (long unsigned int) addrStop);
+    else if (numFilled>0)
+      printf("done, filled %dB in [0x%" PRIx64 "; 0x%" PRIx64 "]\n", (int) numFilled, 
+        (long unsigned int) addrStart, (long unsigned int) addrStop);
+    else
+      printf("done, no data filled\n");
+  }
+  fflush(stdout);
+
+} // fill_image_random
+
+
+
+/**
+  \fn void clip_image(MemoryImage_s *image, const MEMIMAGE_ADDR_T addrStart, const MEMIMAGE_ADDR_T addrStop, const uint8_t verbose)
+
+  \param      image       pointer to memory image. Must be initialized. Existing content is overwritten
+  \param[in]  addrStart   starting address of clipping window
+  \param[in]  addrStop    topmost address of clipping window
+  \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+
+  Clip memory image to specified window, i.e. delete all data outside specified window
+*/
+void clip_image(MemoryImage_s *image, const MEMIMAGE_ADDR_T addrStart, const MEMIMAGE_ADDR_T addrStop, const uint8_t verbose) {
+
+  uint64_t  numStart = image->numEntries;
+  
+  // print message
+  if (verbose == INFORM)
+    printf("  clip image ... ");
+  else if (verbose == CHATTY)
+    printf("  clip memory image ... ");
+  fflush(stdout);
+
+  // simple checks of address window
+  if (addrStart > addrStop) {
+    MemoryImage_free(image);
+    Error("start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
+  }
+
+  // clear all data outside specified window
+  MemoryImage_clip(image, addrStart, addrStop);
+
+  // print message
+  if (verbose == INFORM) {
+    printf("done\n");
+  }
+  else if (verbose == CHATTY) {
+    uint64_t numCleared = numStart - image->numEntries;
+    if (numCleared>1024*1024)
+      printf("done, clipped %1.1fMB outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0/1024.0, 
+        (long unsigned int) addrStart, (long unsigned int) addrStop);
+    else if (numCleared>1024)
+      printf("done, clipped %1.1fkB outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0, 
+        (long unsigned int) addrStart, (long unsigned int) addrStop);
+    else if (numCleared>0)
+      printf("done, clipped %" PRId64 "B outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", numCleared, 
+        (long unsigned int) addrStart, (long unsigned int) addrStop);
+    else
+      printf("done, no data cleared\n");
+  }
+  fflush(stdout);
+
+} // clip_image
+
+
+
+/**
+  \fn void cut_image(MemoryImage_s *image, const MEMIMAGE_ADDR_T addrStart, const MEMIMAGE_ADDR_T addrStop, const uint8_t verbose)
+
+  \param      image       pointer to memory image. Must be initialized. Existing content is overwritten
+  \param[in]  addrStart   starting address of section to clear
+  \param[in]  addrStop    topmost address of section to clear
+  \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+
+  Cut data range from memory image, i.e. delete all data inside specified window
+*/
+void cut_image(MemoryImage_s *image, const MEMIMAGE_ADDR_T addrStart, const MEMIMAGE_ADDR_T addrStop, const uint8_t verbose) {
+
+  uint64_t  numStart = image->numEntries;
+
+  // print message
+  if (verbose == INFORM)
+    printf("  clear image ... ");
+  else if (verbose == CHATTY)
+    printf("  clear memory image ... ");
+  fflush(stdout);
+
+  // simple checks of address window
+  if (addrStart > addrStop) {
+    MemoryImage_free(image);
+    Error("start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
+  }
+
+  // clear all data inside specified window
+  MemoryImage_cut(image, addrStart, addrStop);
+
+  // print message
+  if (verbose == INFORM) {
+    printf("done\n");
+  }
+  else if (verbose == CHATTY) {
+    uint64_t numCleared = numStart - image->numEntries;
+    if (numCleared>1024*1024)
+      printf("done, cut %1.1fMB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0/1024.0, 
+        (long unsigned int) addrStart, (long unsigned int) addrStop);
+    else if (numCleared>1024)
+      printf("done, cut %1.1fkB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0, 
+        (long unsigned int) addrStart, (long unsigned int) addrStop);
+    else if (numCleared>0)
+      printf("done, cut %" PRId64 "B within 0x%" PRIx64 " - 0x%" PRIx64 "\n", numCleared, 
+        (long unsigned int) addrStart, (long unsigned int) addrStop);
+    else
+      printf("done, no data cut\n");
+  }
+  fflush(stdout);
+
+} // cut_image
+
+
+
+/**
+  \fn void copy_image(MemoryImage_s *image, const MEMIMAGE_ADDR_T srcStart, const MEMIMAGE_ADDR_T srcStop, const MEMIMAGE_ADDR_T destStart, const uint8_t verbose)
+
+  \param      image       pointer to memory image. Must be initialized. Existing content is overwritten
+  \param[in]  srcStart    starting address to copy from
+  \param[in]  srcStop     last address to copy from
+  \param[in]  destStart   starting address to copy to
+  \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+
+  Copy data section within image to new address. Data at old address is maintained (if sections don't overlap).
+*/
+void copy_image(MemoryImage_s *image, const MEMIMAGE_ADDR_T srcStart, const MEMIMAGE_ADDR_T srcStop, const MEMIMAGE_ADDR_T destStart, const uint8_t verbose) {
+
+  // print message
+  if (verbose == INFORM)
+    printf("  copy data ... ");
+  else if (verbose == CHATTY)
+    printf("  copy image data ... ");
+  fflush(stdout);
+
+  // simple checks of address window
+  if (srcStart > srcStop) {
+    MemoryImage_free(image);
+    Error("source start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, srcStart, srcStop);
+  }
+
+  // copy data within image
+  MemoryImage_copyRange(image, srcStart, srcStop, destStart);
+
+  // print message
+  if (verbose == INFORM) {
+    printf("done\n");
+  }
+  else if (verbose == CHATTY) {
+    uint64_t  numCopied = srcStop - srcStart + 1;
+    if (numCopied>1024*1024)
+      printf("done, copied %1.1fMB from 0x%" PRIx64 "-0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numCopied/1024.0/1024.0,
+        (long unsigned int) srcStart, (long unsigned int) srcStop, (long unsigned int) destStart);
+    else if (numCopied>1024)
+      printf("done, copied %1.1fkB from 0x%" PRIx64 "-0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numCopied/1024.0,
+        (long unsigned int) srcStart, (long unsigned int) srcStop, (long unsigned int) destStart);
+    else if (numCopied>0)
+      printf("done, copied %" PRId64 "B from 0x%" PRIx64 "-0x%" PRIx64 " to 0x%" PRIx64 "\n", numCopied,
+        (long unsigned int) srcStart, (long unsigned int) srcStop, (long unsigned int) destStart);
+    else
+      printf("done, no data copied\n");
+  }
+  fflush(stdout);
+
+} // copy_image
+
+
+
+/**
+  \fn void move_image(MemoryImage_s *image, const MEMIMAGE_ADDR_T srcStart, const MEMIMAGE_ADDR_T srcStop, const MEMIMAGE_ADDR_T destStart, const uint8_t verbose)
+
+  \param      image       pointer to memory image. Must be initialized. Existing content is overwritten
+  \param[in]  srcStart    starting address to move from
+  \param[in]  srcStop     last address to move from
+  \param[in]  destStart   starting address to move to
+  \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+
+  Move data section within image to new address. Data at old address is deleted.
+*/
+void move_image(MemoryImage_s *image, const MEMIMAGE_ADDR_T srcStart, const MEMIMAGE_ADDR_T srcStop, const MEMIMAGE_ADDR_T destStart, const uint8_t verbose) {
+
+  // print message
+  if (verbose == INFORM)
+    printf("  move data ... ");
+  else if (verbose == CHATTY)
+    printf("  move image data ... ");
+  fflush(stdout);
+
+  // simple checks of address window
+  if (srcStart > srcStop) {
+    MemoryImage_free(image);
+    Error("source start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, srcStart, srcStop);
+  }
+
+  // move data within image
+  MemoryImage_moveRange(image, srcStart, srcStop, destStart);
+
+  // print message
+  if (verbose == INFORM) {
+    printf("done\n");
+  }
+  else if (verbose == CHATTY) {
+    uint64_t  numMoved = srcStop - srcStart + 1;
+    if (numMoved>1024*1024)
+      printf("done, moved %1.1fkB from 0x%" PRIx64 "-0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numMoved/1024.0/1024.0,
+        (long unsigned int) srcStart, (long unsigned int) srcStop, (long unsigned int) destStart);
+    else if (numMoved>1024)
+      printf("done, moved %1.1fkB from 0x%" PRIx64 "-0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numMoved/1024.0,
+        (long unsigned int) srcStart, (long unsigned int) srcStop, (long unsigned int) destStart);
+    else if (numMoved>0)
+      printf("done, moved %" PRId64 "B from 0x%" PRIx64 "-0x%" PRIx64 " to 0x%" PRIx64 "\n", numMoved,
+        (long unsigned int) srcStart, (long unsigned int) srcStop, (long unsigned int) destStart);
+    else
+      printf("done, no data moved\n");
+  }
+  fflush(stdout);
+
+} // move_image
 
 // end of file

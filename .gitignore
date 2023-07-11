@@ -2,14 +2,19 @@
 #*.s19
 #*.hex
 #*.txt
+#*.bin
+input/*
+output/*
 
 # Object files
 *.o
+Objects/*
 
 # Executables
 hexfile_merger
 hexfile_merger.exe
 dump.*
+*.sh
 
 # Doxygen output
 doxygen/html/*
@@ -18,3 +23,6 @@ doxygen/man/*
 doxygen/rtf/*
 doxygen/xml/*
 /muexe_stm8.s19
+
+# Test overview list
+*.ods

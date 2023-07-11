@@ -1,15 +1,13 @@
 /**
-   \file main.c
+  \file main.c
 
-   \author G. Icking-Konert
-   \date 2018-12-14
-   \version 0.2
+  \author G. Icking-Konert
 
-   \brief implementation of main routine
+  \brief implementation of main routine
 
-   this is the main file containing browsing input parameters, calling the import and export routines
+  this is the main file containing browsing input parameters, calling the import and export routines
 
-   \note program not yet fully tested!
+  \note program not yet fully tested!
 */
 
 // include files
@@ -27,46 +25,53 @@
 
 
 /**
-   \fn int main(int argc, char *argv[])
+  \fn int main(int argc, char *argv[])
 
-   \param argc      number of commandline arguments + 1
-   \param argv      string array containing commandline arguments (argv[0] contains name of executable)
+  \param argc      number of commandline arguments + 1
+  \param argv      string array containing commandline arguments (argv[0] contains name of executable)
 
-   \return dummy return code (not used)
+  \return dummy return code (not used)
 
-   Main routine for import and output
+  Main routine for import and output
 */
 int main(int argc, char ** argv) {
 
   // local variables
-  char      appname[STRLEN];      // name of application without path
-  char      version[100];         // version as string
-  int       verbose;              // verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
-  uint16_t  *imageBuf;            // global RAM image buffer (high byte != 0 indicates value is set)
-  bool      printHelp;            // flag for printing help page
-  char      tmp[STRLEN];          // misc buffer
+  char            appname[STRLEN];    // name of application without path
+  char            version[100];       // version as string
+  int             verbose;            // verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+  MemoryImage_s   image;              // memory image buffer as list of (addr, value)
+  bool            printHelp;          // flag for printing help page
+  char            tmp[STRLEN+106];    // misc string buffer
 
+
+  // initialize memory image
+  MemoryImage_init(&image);
+
+  // set optional image debug level
+  #if defined(MEMIMAGE_DEBUG)
+    MemoryImage_setDebug(&image, 2);
+  #endif
 
   // initialize defaults
-  g_pauseOnExit         = false;  // no wait for <return> before terminating (dummy)
-  g_backgroundOperation = false;  // assume foreground application
-  verbose               = INFORM; // verbosity level medium
-
+  g_pauseOnExit         = false;      // no wait for <return> before terminating (dummy)
+  g_backgroundOperation = false;      // assume foreground application
+  verbose               = INFORM;     // verbosity level medium
+  
   // debug: print arguments
   /*
   printf("\n\narguments:\n");
-  for (i=0; i<argc; i++) {
-    //printf("  %d: '%s'\n", (int) i, argv[i]);
-    printf("%s ", argv[i]);
+  for (int i=0; i<argc; i++) {
+    printf("  %d: '%s'\n", (int) i, argv[i]);
+    //printf("%s ", argv[i]);
   }
   printf("\n\n");
   exit(1);
   */
 
-
   // get app name & version, and change console title
   get_app_name(argv[0], VERSION, appname, version);
-  sprintf(tmp, "%s (%s)", appname, version);
+  snprintf(tmp, sizeof(tmp), "%s (%s)", appname, version);
   setConsoleTitle(tmp);
 
 
@@ -91,9 +96,17 @@ int main(int argc, char ** argv) {
     else if ((!strcmp(argv[i], "-v")) || (!strcmp(argv[i], "-verbose"))) {
 
       // get verbosity level
-      if (i+1<argc)
-        sscanf(argv[++i],"%d",&verbose);
+      if (i+1<argc) {
+        i++;
+	if ((!isDecString(argv[i])) || (sscanf(argv[i],"%d", &verbose) <= 0) || (verbose < 0) || (verbose > 3))
+        {
+          printf("\ncommand '-v/-verbose' requires a decimal parameter (0..3)\n");
+          printHelp = true;
+          break;
+        }
+      }
       else {
+        printf("\ncommand '-v/-verbose' requires a decimal parameter (0..3)\n");
         printHelp = true;
         break;
       }
@@ -103,21 +116,31 @@ int main(int argc, char ** argv) {
     } // verbosity
 
 
-    // skip file import. Just check parameter number
+    // skip file import. Just check parameter number and offset (bin only)
     else if (!strcmp(argv[i], "-import")) {
 
       // get file name
       if (i+1<argc) {
-        if (strstr(argv[++i], ".bin") != NULL) {  // for binary file skip additionaly address
-          if (i+1<argc)
+        i+=1;
+        char *p = strrchr(argv[i], '.');
+        if ((p != NULL ) && (!strcmp(p, ".bin"))) {   // for binary file assert additional address
+          if (i+1<argc) {
             i+=1;
+            if (!isHexString(argv[i])) {
+              printf("\ncommand '-import' requires a hex offset for binary\n");
+              printHelp = true;
+              break;
+            }
+          }
           else {
+            printf("\ncommand '-import' requires a hex offset for binary\n");
             printHelp = true;
             break;
           }
         }
       }
       else {
+        printf("\ncommand '-import' requires a filename\n");
         printHelp = true;
         break;
       }
@@ -127,9 +150,11 @@ int main(int argc, char ** argv) {
 
     // skip file export. Just check parameter number
     else if (!strcmp(argv[i], "-export")) {
-      if (i+1<argc)
+      if (i+1<argc) {
         i+=1;
+      }
       else {
+        printf("\ncommand '-export' requires a filename\n");
         printHelp = true;
         break;
       }
@@ -138,48 +163,78 @@ int main(int argc, char ** argv) {
 
     // skip print
     else if (!strcmp(argv[i], "-print")) {
+      
+      // dummy
 
     } // print
 
 
-    // skip memory filling. Just check parameter number
+    // skip memory filling. Just check parameter type
     else if (!strcmp(argv[i], "-fill")) {
-      if (i+3<argc)
+      if (i+3<argc) {
+        if ((!isHexString(argv[i+1])) || (!isHexString(argv[i+2])) || (!isHexString(argv[i+3]))) {
+          printf("\ncommand '-fill' requires three hex parameters\n");
+          printHelp = true;
+          break;
+        }
         i+=3;
+      }
       else {
+        printf("\ncommand '-fill' requires three hex parameters\n");
         printHelp = true;
         break;
       }
     } // fill
 
 
-    // skip memory filling. Just check parameter number
+    // skip memory filling. Just check parameter type
     else if (!strcmp(argv[i], "-fillRand")) {
-      if (i+2<argc)
+      if (i+2<argc) {
+        if ((!isHexString(argv[i+1])) || (!isHexString(argv[i+2]))) {
+          printf("\ncommand '-fillRand' requires two hex parameters\n");
+          printHelp = true;
+          break;
+        }
         i+=2;
+      }
       else {
+        printf("\ncommand '-fillRand' requires two hex parameters\n");
         printHelp = true;
         break;
       }
     } // fillRand
 
 
-    // skip memory clipping. Just check parameter number
+    // skip memory clipping. Just check parameter type
     else if (!strcmp(argv[i], "-clip")) {
-      if (i+2<argc)
+      if (i+2<argc) {
+        if ((!isHexString(argv[i+1])) || (!isHexString(argv[i+2]))) {
+          printf("\ncommand '-clip' requires two hex parameters\n");
+          printHelp = true;
+          break;
+        }
         i+=2;
+      }
       else {
+        printf("\ncommand '-clip' requires two hex parameters\n");
         printHelp = true;
         break;
       }
     } // clip
 
 
-    // skip cutting out memory range. Just check parameter number
+    // skip cutting out memory range. Just check parameter type
     else if (!strcmp(argv[i], "-cut")) {
-      if (i+2<argc)
+      if (i+2<argc) {
+        if ((!isHexString(argv[i+1])) || (!isHexString(argv[i+2]))) {
+          printf("\ncommand '-cut' requires two hex parameters\n");
+          printHelp = true;
+          break;
+        }
         i+=2;
+      }
       else {
+        printf("\ncommand '-cut' requires two hex parameters\n");
         printHelp = true;
         break;
       }
@@ -188,9 +243,16 @@ int main(int argc, char ** argv) {
 
     // skip memory copy. Just check parameter number
     else if (!strcmp(argv[i], "-copy")) {
-      if (i+3<argc)
+      if (i+3<argc) {
+        if ((!isHexString(argv[i+1])) || (!isHexString(argv[i+2])) || (!isHexString(argv[i+3]))) {
+          printf("\ncommand '-copy' requires three hex parameters\n");
+          printHelp = true;
+          break;
+        }
         i+=3;
+      }
       else {
+        printf("\ncommand '-copy' requires three hex parameters\n");
         printHelp = true;
         break;
       }
@@ -199,9 +261,16 @@ int main(int argc, char ** argv) {
 
     // skip memory move. Just check parameter number
     else if (!strcmp(argv[i], "-move")) {
-      if (i+3<argc)
+      if (i+3<argc) {
+        if ((!isHexString(argv[i+1])) || (!isHexString(argv[i+2])) || (!isHexString(argv[i+3]))) {
+          printf("\ncommand '-move' requires three hex parameters\n");
+          printHelp = true;
+          break;
+        }
         i+=3;
+      }
       else {
+        printf("\ncommand '-move' requires three hex parameters\n");
         printHelp = true;
         break;
       }
@@ -210,6 +279,7 @@ int main(int argc, char ** argv) {
 
     // else print help
     else {
+      printf("\nunknown command '%s' \n", argv[i]);
       printHelp = true;
       break;
     }
@@ -217,7 +287,7 @@ int main(int argc, char ** argv) {
   } // 1st pass over commandline arguments
 
 
-  // on request (-h) or in case of parameter error print help page
+  // on request (-h) or in case of error print help page
   if ((printHelp==true) || (argc == 1)) {
     printf("\n");
     printf("\n%s (%s)\n\n", appname, version);
@@ -267,11 +337,6 @@ int main(int argc, char ** argv) {
   // 2nd pass of commandline arguments: execute actions, e.g. import & export files
   /////////////////
 
-  // allocate and init global RAM image (>1MByte requires dynamic allocation)
-  if (!(imageBuf = malloc(LENIMAGEBUF * sizeof(*imageBuf))))
-    Error("Cannot allocate image buffer, try reducing LENIMAGEBUF");
-  memset(imageBuf, 0, LENIMAGEBUF * sizeof(*imageBuf));
-
   // loop over commandline arguments
   for (int i=1; i<argc; i++) {
 
@@ -287,61 +352,36 @@ int main(int argc, char ** argv) {
     } // verbose
 
 
-    // import next ASCII file into RAM
+    // import next file into memory image
     else if (!strcmp(argv[i], "-import")) {
 
       // intermediate variables
       char      infile[STRLEN]="";     // name of input file
-      char      *fileBuf;              // RAM buffer for input file
-      uint64_t  lenFile;               // length of file in fileBuf
       uint64_t  addrStart;             // address offset for binary file
-
-      // allocate intermediate buffer (>1MByte requires dynamic allocation)
-      if (!(fileBuf = malloc(LENFILEBUF * sizeof(*fileBuf))))
-        Error("Cannot allocate file buffer, try reducing LENFILEBUF");
 
       // get file name
       strncpy(infile, argv[++i], STRLEN-1);
 
       // for binary file also get starting address
-      if (strstr(infile, ".bin") != NULL) {
+      char *p = strrchr(infile, '.');
+      if ((p != NULL ) && (strstr(p, ".bin"))) {
         strncpy(tmp, argv[++i], STRLEN-1);
         sscanf(tmp, "%" SCNx64, &addrStart);
       }
 
-      // import file into string buffer (no interpretation, yet)
-      load_file(infile, fileBuf, &lenFile, verbose);
-
       // convert to memory image, depending on file type
-      if (strstr(infile, ".s19") != NULL)   // Motorola S-record format
-        convert_s19(fileBuf, lenFile, imageBuf, verbose);
-      else if ((strstr(infile, ".hex") != NULL) || (strstr(infile, ".ihx") != NULL))   // Intel hex format
-        convert_ihx(fileBuf, lenFile, imageBuf, verbose);
-      else if (strstr(infile, ".txt") != NULL)   // text table (hex addr / data)
-        convert_txt(fileBuf, lenFile, imageBuf, verbose);
-      else if (strstr(infile, ".bin") != NULL)   // binary file
-        convert_bin(fileBuf, lenFile, addrStart, imageBuf, verbose);
-      else
+      if ((p != NULL ) && (!strcmp(p, ".s19")))          // Motorola S-record format
+        import_s19(infile, &image, verbose);
+      else if ((p != NULL ) && (!strcmp(p, ".hex") || (!strcmp(p, ".ihx"))))  // Intel hex format
+        import_ihx(infile, &image, verbose);
+      else if ((p != NULL ) && (!strcmp(p, ".txt")))     // text table (hex addr / data)
+        import_txt(infile, &image, verbose);
+      else if ((p != NULL ) && (!strcmp(p, ".bin")))     // binary file
+        import_bin(infile, addrStart, &image, verbose);
+      else {
+        MemoryImage_free(&image);
         Error("Input file %s has unsupported format (*.s19, *.hex, *.ihx, *.txt, *.bin)", infile);
-
-      // debug
-      #if defined(DEBUG)
-      {
-        uint64_t addr, addrStart, addrStop, numData;
-        get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
-        printf("\n\n");
-        printf("addr: 0x%04X..0x%04X   %d\n", addrStart, addrStop, numData);
-        for (addr=0; addr<LENIMAGEBUF; addr++) {
-          if (imageBuf[addr] & 0xFF00)
-            printf(" 0x%04x   0x%02x\n", addr, (int) (imageBuf[addr]) & 0xFF);
-        }
-        printf("\n");
-        //Exit(1,0);
       }
-      #endif
-
-      // release intermediate buffers
-      free(fileBuf);
 
     } // import file
 
@@ -356,27 +396,30 @@ int main(int argc, char ** argv) {
       strncpy(outfile, argv[++i], STRLEN-1);
 
       // export in format depending on file extension
-      if (strstr(outfile, ".s19") != NULL)        // Motorola S-record format
-        export_s19(outfile, imageBuf, verbose);
-      else if ((strstr(outfile, ".hex") != NULL) || (strstr(outfile, ".ihx") != NULL))   // Intel hex format
-        export_ihx(outfile, imageBuf, verbose);
-      else if (strstr(outfile, ".txt") != NULL)   // text table (hex addr / hex data)
-        export_txt(outfile, imageBuf, verbose);
-      else if (strstr(outfile, ".bin") != NULL)   // binary format
-        export_bin(outfile, imageBuf, verbose);
-      else
-        Error("Unsupported output file extension of '%s' (*.s19, *.txt)", outfile);
+      char *p = strrchr(outfile, '.');
+      if ((p != NULL ) && (!strcmp(p, ".s19")))          // Motorola S-record format
+        export_s19(outfile, &image, verbose);
+      else if ((p != NULL ) && ((!strcmp(p, ".hex")) || (!strcmp(p, ".ihx"))))  // Intel hex format
+        export_ihx(outfile, &image, verbose);
+      else if ((p != NULL ) && (!strcmp(p, ".txt")))     // text table (hex addr / data)
+        export_txt(outfile, &image, verbose);
+      else if ((p != NULL ) && (!strcmp(p, ".bin")))     // binary file
+        export_bin(outfile, &image, verbose);
+      else {
+        MemoryImage_free(&image);
+        Error("Output file %s has unsupported format (*.s19, *.hex, *.ihx, *.txt, *.bin)", outfile);
+      }
 
     } // export file
 
 
-    // print RAM image to console
+    // print memory image to console
     else if (!strcmp(argv[i], "-print")) {
 
       // print to stdout
-      export_txt("console", imageBuf, verbose);
+      export_txt("console", &image, verbose);
 
-    } // export file/print
+    } // print memory image
 
 
     // fill memory range with fixed value
@@ -389,7 +432,7 @@ int main(int argc, char ** argv) {
       strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &value);
 
       // fill specified memory range
-      fill_image(imageBuf, addrStart, addrStop, (uint8_t) value, verbose);
+      fill_image(&image, addrStart, addrStop, (uint8_t) value, verbose);
 
     } // fill memory range
 
@@ -403,7 +446,7 @@ int main(int argc, char ** argv) {
       strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &addrStop);
 
       // fill specified memory range
-      fill_image_random(imageBuf, addrStart, addrStop, verbose);
+      fill_image_random(&image, addrStart, addrStop, verbose);
 
     } // randomly fill memory range
 
@@ -417,7 +460,7 @@ int main(int argc, char ** argv) {
       strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &addrStop);
 
       // clear all data outside specified window
-      clip_image(imageBuf, addrStart, addrStop, verbose);
+      clip_image(&image, addrStart, addrStop, verbose);
 
     } // clip memory image
 
@@ -431,7 +474,7 @@ int main(int argc, char ** argv) {
       strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &addrStop);
 
       // cut all data inside specified window
-      cut_image(imageBuf, addrStart, addrStop, verbose);
+      cut_image(&image, addrStart, addrStop, verbose);
 
     } // cut data range from memory image
 
@@ -446,7 +489,7 @@ int main(int argc, char ** argv) {
       strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &targetStart);
 
       // clear all data inside specified window
-      copy_image(imageBuf, sourceStart, sourceStop, targetStart, verbose);
+      copy_image(&image, sourceStart, sourceStop, targetStart, verbose);
 
     } // copy data in memory image
 
@@ -461,7 +504,7 @@ int main(int argc, char ** argv) {
       strncpy(tmp, argv[++i], STRLEN-1);  sscanf(tmp, "%" SCNx64, &targetStart);
 
       // clear all data inside specified window
-      move_image(imageBuf, sourceStart, sourceStop, targetStart, verbose);
+      move_image(&image, sourceStart, sourceStop, targetStart, verbose);
 
     } // move data in memory image
 
@@ -478,8 +521,8 @@ int main(int argc, char ** argv) {
   if (verbose != MUTE)
     printf("finished\n\n");
 
-  // release global buffer
-  free(imageBuf);
+  // release memory image
+  MemoryImage_free(&image);
 
   // avoid compiler warnings
   return(0);

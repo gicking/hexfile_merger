@@ -2,8 +2,6 @@
   \file misc.h
    
   \author G. Icking-Konert
-  \date 2014-03-14
-  \version 0.1
    
   \brief declaration of misc routines
    
@@ -20,7 +18,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdarg.h>
+#include <ctype.h>
+
 
 // color codes 
 #define PRM_COLOR_DEFAULT       0
@@ -70,6 +71,12 @@ uint64_t millis(void);
 
 /// get microseconds since start of program (as Arduino)
 uint64_t micros(void);
+
+/// check is a string represents a decimal number
+bool isDecString(const char *str);
+
+/// check is a string represents a hexadecimal number starting with "0x"
+bool isHexString(const char *str);
 
 #endif // _MISC_H_
 

@@ -2,8 +2,6 @@
   \file misc.c
   
   \author G. Icking-Konert
-  \date 2014-03-14
-  \version 0.1
    
   \brief implementation of misc routines
    
@@ -489,5 +487,57 @@ uint64_t micros() {
   return(microsCurr - s_microsStart);
 
 } // micros
+
+
+
+/**
+  \fn bool isDecString(const char *str)
+
+  \param str     C-string to check (ends with '\0')
+
+  \return check result
+
+  Check if a string is a valid decimal number with only 0-9
+*/
+bool isDecString(const char *str) {
+
+  // assert that string characters are in 0-9
+  for (int i = 0; i < strlen(str); i++) {
+    if (!isdigit(str[i])) {
+      return false;
+    }
+  }
+   
+  return true;
+  
+} // isDecString()
+
+
+
+/**
+  \fn bool isHexString(const char *str)
+
+  \param str     C-string to check (starts with "0x" and ends with '\0')
+
+  \return check result
+
+  Check if a string is a valid hexadecimal number starting with "0x", else only 0-9,a-f,A-F
+*/
+bool isHexString(const char *str) {
+
+  // assert that string starts with "0x"
+  if ((str[0] != '0') || ((str[1] != 'x') && (str[1] != 'X')))
+    return false;
+
+  // assert remaining string characters are in 0-9,a-f,A-F
+  for (int i = 2; i < strlen(str); i++) {
+    if (!isxdigit(str[i])) {
+      return false;
+    }
+  }
+   
+  return true;
+  
+} // isHexString()
 
 // end of file

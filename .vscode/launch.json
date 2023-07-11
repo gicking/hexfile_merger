@@ -1,0 +1,34 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(gdb) Starten",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/hexfile_merger",
+            "args": ["-v","3","-import","output/tests.19","-export","output/test.txt"],
+            //"args": ["-v3","-import","output/OPT2_beep.bin","0x4803","-print"],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Automatische Strukturierung und Einrückung für \"gdb\" aktivieren",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Disassemblierungsvariante auf Intel festlegen",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        }
+
+    ]
+}
