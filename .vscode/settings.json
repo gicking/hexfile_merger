@@ -1,6 +1,5 @@
 {
-    "cmake.configureOnOpen": false,
     "files.associations": {
-        "stdarg.h": "c"
+        "memory_image.h": "c"
     }
 }

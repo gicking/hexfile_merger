@@ -1,7 +1,7 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    // Verwendet IntelliSense zum Ermitteln möglicher Attribute.
+    // Zeigen Sie auf vorhandene Attribute, um die zugehörigen Beschreibungen anzuzeigen.
+    // Weitere Informationen finden Sie unter https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
@@ -9,8 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/hexfile_merger",
-            "args": ["-v","3","-import","output/tests.19","-export","output/test.txt"],
-            //"args": ["-v3","-import","output/OPT2_beep.bin","0x4803","-print"],
+            "args": ["-v", "3", "-import", "input/dummy.s19", "-print", "-export", "dummy_1kB.bina"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
