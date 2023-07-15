@@ -169,13 +169,13 @@ void import_s19(const char *filename, MemoryImage_s *image, const uint8_t verbos
   else if (verbose == CHATTY) {
     if (image->numEntries > 1024*1024)
       printf("done (%1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0/1024.0, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else if (image->numEntries > 1024)
       printf("done (%1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else if (image->numEntries > 0)
       printf("done (%dB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (int) image->numEntries, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else
       printf("done, no data\n");
   }
@@ -374,13 +374,13 @@ void import_ihx(const char *filename, MemoryImage_s *image, const uint8_t verbos
   else if (verbose == CHATTY) {
     if (image->numEntries > 1024*1024)
       printf("done (%1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0/1024.0, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else if (image->numEntries > 1024)
       printf("done (%1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else if (image->numEntries > 0)
       printf("done (%dB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (int) image->numEntries, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else
       printf("done, no data\n");
   }
@@ -437,7 +437,7 @@ void import_txt(const char *filename, MemoryImage_s *image, const uint8_t verbos
   char            line[STRLEN];
   int             linecount  = 0;
   char            sAddr[STRLEN], sValue[STRLEN];
-  unsigned long   address = 0; 
+  uint64_t        address = 0; 
   unsigned int    value = 0;
 
   // read data line by line
@@ -522,13 +522,13 @@ void import_txt(const char *filename, MemoryImage_s *image, const uint8_t verbos
   else if (verbose == CHATTY) {
     if (image->numEntries > 1024*1024)
       printf("done (%1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0/1024.0, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else if (image->numEntries > 1024)
       printf("done (%1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else if (image->numEntries > 0)
       printf("done (%dB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (int) image->numEntries, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else
       printf("done, no data\n");
   }
@@ -624,13 +624,13 @@ void import_bin(const char *filename, const MEMIMAGE_ADDR_T addrStart, MemoryIma
   else if (verbose == CHATTY) {
     if (image->numEntries > 1024*1024)
       printf("done (%1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0/1024.0, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else if (image->numEntries > 1024)
       printf("done (%1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else if (image->numEntries > 0)
       printf("done (%dB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (int) image->numEntries, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else
       printf("done, no data\n");
   }
@@ -783,13 +783,13 @@ void export_s19(char *filename, MemoryImage_s *image, const uint8_t verbose) {
   else if (verbose == CHATTY) {
     if (image->numEntries > 1024*1024)
       printf("done (%1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0/1024.0, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else if (image->numEntries > 1024)
       printf("done (%1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else if (image->numEntries > 0)
       printf("done (%dB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (int) image->numEntries, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else
       printf("done, no data\n");
   }
@@ -932,13 +932,13 @@ void export_ihx(char *filename, MemoryImage_s *image, const uint8_t verbose) {
   else if (verbose == CHATTY) {
     if (image->numEntries > 1024*1024)
       printf("done (%1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0/1024.0, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else if (image->numEntries > 1024)
       printf("done (%1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else if (image->numEntries > 0)
       printf("done (%dB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (int) image->numEntries, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else
       printf("done, no data\n");
   }
@@ -1014,9 +1014,9 @@ void export_txt(char *filename, MemoryImage_s *image, const uint8_t verbose) {
   // loop over image and output address, data in hex format
   for (size_t i = 0; i < image->numEntries; i++) {
     if (flagFile)
-      fprintf(fp, "0x%" PRIx64 "	0x%02x\n", (long unsigned int) image->memoryEntries[i].address, (int) image->memoryEntries[i].data & 0xFF);
+      fprintf(fp, "0x%" PRIx64 "	0x%02x\n", (uint64_t) image->memoryEntries[i].address, (int) image->memoryEntries[i].data & 0xFF);
     else
-      fprintf(fp, "    0x%" PRIx64 "	0x%02x\n", (long unsigned int) image->memoryEntries[i].address, (int) image->memoryEntries[i].data & 0xFF);      
+      fprintf(fp, "    0x%" PRIx64 "	0x%02x\n", (uint64_t) image->memoryEntries[i].address, (int) image->memoryEntries[i].data & 0xFF);      
   }
 
   // close output file
@@ -1043,13 +1043,13 @@ void export_txt(char *filename, MemoryImage_s *image, const uint8_t verbose) {
   else if (verbose == CHATTY) {
     if (image->numEntries > 1024*1024)
       printf("done (%1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0/1024.0, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else if (image->numEntries > 1024)
       printf("done (%1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else if (image->numEntries > 0)
       printf("done (%dB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (int) image->numEntries, 
-        (long unsigned int) image->memoryEntries[0].address, (long unsigned int) image->memoryEntries[image->numEntries-1].address);
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
     else
       printf("done, no data\n");
   }
@@ -1143,13 +1143,13 @@ void export_bin(char *filename, MemoryImage_s *image, const uint8_t verbose) {
   else if (verbose == CHATTY) {
     if (countByte > 1024*1024)
       printf("done (%1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) countByte/1024.0/1024.0, 
-        (long unsigned int) addrStart, (long unsigned int) addrStop);
+        (uint64_t) addrStart, (uint64_t) addrStop);
     else if (countByte > 1024)
       printf("done (%1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) countByte/1024.0, 
-        (long unsigned int) addrStart, (long unsigned int) addrStop);
+        (uint64_t) addrStart, (uint64_t) addrStop);
     else if (countByte > 0)
       printf("done (%dB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (int) countByte, 
-        (long unsigned int) addrStart, (long unsigned int) addrStop);
+        (uint64_t) addrStart, (uint64_t) addrStop);
     else
       printf("done, no data\n");
   }
@@ -1197,13 +1197,13 @@ void fill_image(MemoryImage_s *image, const MEMIMAGE_ADDR_T addrStart, const MEM
   else if (verbose == CHATTY) {
     if (numFilled>1024*1024)
       printf("done, filled %1.1fMB with 0x%02x in [0x%" PRIx64 "; 0x%" PRIx64 "]\n", (float) numFilled/1024.0/1024.0, value, 
-        (long unsigned int) addrStart, (long unsigned int) addrStop);
+        (uint64_t) addrStart, (uint64_t) addrStop);
     else if (numFilled>1024)
       printf("done, filled %1.1fkB with 0x%02x in [0x%" PRIx64 "; 0x%" PRIx64 "]\n", (float) numFilled/1024.0, value, 
-        (long unsigned int) addrStart, (long unsigned int) addrStop);
+        (uint64_t) addrStart, (uint64_t) addrStop);
     else if (numFilled>0)
       printf("done, filled %dB with 0x%02x in [0x%" PRIx64 "; 0x%" PRIx64 "]\n", (int) numFilled, value, 
-        (long unsigned int) addrStart, (long unsigned int) addrStop);
+        (uint64_t) addrStart, (uint64_t) addrStop);
     else
       printf("done, no data filled\n");
   }
@@ -1250,13 +1250,13 @@ void fill_image_random(MemoryImage_s *image, const MEMIMAGE_ADDR_T addrStart, co
   else if (verbose == CHATTY) {
     if (numFilled>1024*1024)
       printf("done, filled %1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "]\n", (float) numFilled/1024.0/1024.0, 
-        (long unsigned int) addrStart, (long unsigned int) addrStop);
+        (uint64_t) addrStart, (uint64_t) addrStop);
     else if (numFilled>1024)
       printf("done, filled %1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "]\n", (float) numFilled/1024.0, 
-        (long unsigned int) addrStart, (long unsigned int) addrStop);
+        (uint64_t) addrStart, (uint64_t) addrStop);
     else if (numFilled>0)
       printf("done, filled %dB in [0x%" PRIx64 "; 0x%" PRIx64 "]\n", (int) numFilled, 
-        (long unsigned int) addrStart, (long unsigned int) addrStop);
+        (uint64_t) addrStart, (uint64_t) addrStop);
     else
       printf("done, no data filled\n");
   }
@@ -1304,13 +1304,13 @@ void clip_image(MemoryImage_s *image, const MEMIMAGE_ADDR_T addrStart, const MEM
     uint64_t numCleared = numStart - image->numEntries;
     if (numCleared>1024*1024)
       printf("done, clipped %1.1fMB outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0/1024.0, 
-        (long unsigned int) addrStart, (long unsigned int) addrStop);
+        (uint64_t) addrStart, (uint64_t) addrStop);
     else if (numCleared>1024)
       printf("done, clipped %1.1fkB outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0, 
-        (long unsigned int) addrStart, (long unsigned int) addrStop);
+        (uint64_t) addrStart, (uint64_t) addrStop);
     else if (numCleared>0)
       printf("done, clipped %" PRId64 "B outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", numCleared, 
-        (long unsigned int) addrStart, (long unsigned int) addrStop);
+        (uint64_t) addrStart, (uint64_t) addrStop);
     else
       printf("done, no data cleared\n");
   }
@@ -1358,13 +1358,13 @@ void cut_image(MemoryImage_s *image, const MEMIMAGE_ADDR_T addrStart, const MEMI
     uint64_t numCleared = numStart - image->numEntries;
     if (numCleared>1024*1024)
       printf("done, cut %1.1fMB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0/1024.0, 
-        (long unsigned int) addrStart, (long unsigned int) addrStop);
+        (uint64_t) addrStart, (uint64_t) addrStop);
     else if (numCleared>1024)
       printf("done, cut %1.1fkB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0, 
-        (long unsigned int) addrStart, (long unsigned int) addrStop);
+        (uint64_t) addrStart, (uint64_t) addrStop);
     else if (numCleared>0)
       printf("done, cut %" PRId64 "B within 0x%" PRIx64 " - 0x%" PRIx64 "\n", numCleared, 
-        (long unsigned int) addrStart, (long unsigned int) addrStop);
+        (uint64_t) addrStart, (uint64_t) addrStop);
     else
       printf("done, no data cut\n");
   }
@@ -1411,13 +1411,13 @@ void copy_image(MemoryImage_s *image, const MEMIMAGE_ADDR_T srcStart, const MEMI
     uint64_t  numCopied = srcStop - srcStart + 1;
     if (numCopied>1024*1024)
       printf("done, copied %1.1fMB from 0x%" PRIx64 "-0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numCopied/1024.0/1024.0,
-        (long unsigned int) srcStart, (long unsigned int) srcStop, (long unsigned int) destStart);
+        (uint64_t) srcStart, (uint64_t) srcStop, (uint64_t) destStart);
     else if (numCopied>1024)
       printf("done, copied %1.1fkB from 0x%" PRIx64 "-0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numCopied/1024.0,
-        (long unsigned int) srcStart, (long unsigned int) srcStop, (long unsigned int) destStart);
+        (uint64_t) srcStart, (uint64_t) srcStop, (uint64_t) destStart);
     else if (numCopied>0)
       printf("done, copied %" PRId64 "B from 0x%" PRIx64 "-0x%" PRIx64 " to 0x%" PRIx64 "\n", numCopied,
-        (long unsigned int) srcStart, (long unsigned int) srcStop, (long unsigned int) destStart);
+        (uint64_t) srcStart, (uint64_t) srcStop, (uint64_t) destStart);
     else
       printf("done, no data copied\n");
   }
@@ -1464,13 +1464,13 @@ void move_image(MemoryImage_s *image, const MEMIMAGE_ADDR_T srcStart, const MEMI
     uint64_t  numMoved = srcStop - srcStart + 1;
     if (numMoved>1024*1024)
       printf("done, moved %1.1fkB from 0x%" PRIx64 "-0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numMoved/1024.0/1024.0,
-        (long unsigned int) srcStart, (long unsigned int) srcStop, (long unsigned int) destStart);
+        (uint64_t) srcStart, (uint64_t) srcStop, (uint64_t) destStart);
     else if (numMoved>1024)
       printf("done, moved %1.1fkB from 0x%" PRIx64 "-0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numMoved/1024.0,
-        (long unsigned int) srcStart, (long unsigned int) srcStop, (long unsigned int) destStart);
+        (uint64_t) srcStart, (uint64_t) srcStop, (uint64_t) destStart);
     else if (numMoved>0)
       printf("done, moved %" PRId64 "B from 0x%" PRIx64 "-0x%" PRIx64 " to 0x%" PRIx64 "\n", numMoved,
-        (long unsigned int) srcStart, (long unsigned int) srcStop, (long unsigned int) destStart);
+        (uint64_t) srcStart, (uint64_t) srcStop, (uint64_t) destStart);
     else
       printf("done, no data moved\n");
   }

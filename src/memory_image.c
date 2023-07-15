@@ -173,7 +173,7 @@ bool MemoryImage_addData(MemoryImage_s* image, const MEMIMAGE_ADDR_T address, co
         // re-allocate memory buffer. Return on fail
         image->memoryEntries = (MemoryEntry_s*)realloc(image->memoryEntries, newCapacity * sizeof(MemoryEntry_s));
         if (image->memoryEntries == NULL) {
-            fprintf(stderr, "Error in MemoryImage_addData(): failed to reallocate %ldB\n", newCapacity * sizeof(MemoryEntry_s));
+            fprintf(stderr, "Error in MemoryImage_addData(): failed to reallocate %ldB\n", newCapacity * (long) sizeof(MemoryEntry_s));
             return false;
         }
         image->capacity = newCapacity;
@@ -237,7 +237,7 @@ bool MemoryImage_deleteData(MemoryImage_s* image, const MEMIMAGE_ADDR_T address)
             // re-allocate memory buffer. Return on fail
             image->memoryEntries = (MemoryEntry_s*)realloc(image->memoryEntries, newCapacity * sizeof(MemoryEntry_s));
             if (image->memoryEntries == NULL) {
-                fprintf(stderr, "Error in MemoryImage_deleteData(): failed to reallocate %ldB\n", newCapacity * sizeof(MemoryEntry_s));
+                fprintf(stderr, "Error in MemoryImage_deleteData(): failed to reallocate %ldB\n", newCapacity * (long) sizeof(MemoryEntry_s));
                 return false;
             }
             image->capacity = newCapacity;
@@ -418,7 +418,7 @@ bool MemoryImage_clone(const MemoryImage_s* srcImage, MemoryImage_s* destImage) 
     size_t size = srcImage->numEntries * sizeof(MemoryEntry_s);
     destImage->memoryEntries = (MemoryEntry_s*) malloc(size);
     if (destImage->memoryEntries == NULL) {
-        fprintf(stderr, "Error in cloneMemoryImage(): failed to allocate %ldB\n", size);
+        fprintf(stderr, "Error in cloneMemoryImage(): failed to allocate %ldB\n", (long) size);
         return false;
     }
     memcpy((void*) destImage->memoryEntries, (void*) srcImage->memoryEntries, size);

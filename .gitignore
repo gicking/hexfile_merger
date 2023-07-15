@@ -1,20 +1,11 @@
-# Hexfiles
-#*.s19
-#*.hex
-#*.txt
-#*.bin
-input/*
-output/*
-
 # Object files
 *.o
-Objects/*
+lib/*
 
 # Executables
 hexfile_merger
 hexfile_merger.exe
-dump.*
-*.sh
+.pio/*
 
 # Doxygen output
 doxygen/html/*
@@ -22,7 +13,20 @@ doxygen/latex/*
 doxygen/man/*
 doxygen/rtf/*
 doxygen/xml/*
-/muexe_stm8.s19
+
+# Hexfiles
+#*.s19
+#*.hex
+#*.txt
+#*.bin
+testing/*
 
 # Test overview list
 *.ods
+
+# VSCode & PlatformIO files
+.vscode/*
+.pio/*
+.pioenvs
+.piolibdeps
+
