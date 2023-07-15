@@ -17,7 +17,7 @@
 #define _SW_VERSION_H_
 
 /// 16b SW version identifier 
-#define VERSION     ((1<<14) | (6<<6) | (0<<1) | 1)     // -> v1.6.0
+#define VERSION     ((1<<14) | (6<<6) | (1<<1) | 1)     // -> v1.6.1
 
 #endif // _SW_VERSION_H_
 
@@ -25,6 +25,11 @@
 /********************
 
 Revision History
+----------------
+
+v1.6.1 (2023-07-15)
+  - migrate to VSCode / PlatformIO file structure for convenience
+  
 ----------------
 
 v1.6.0 (2023-06-29)

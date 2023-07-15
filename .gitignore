@@ -3,9 +3,7 @@
 lib/*
 
 # Executables
-hexfile_merger
-hexfile_merger.exe
-.pio/*
+hexfile_merger*
 
 # Doxygen output
 doxygen/html/*

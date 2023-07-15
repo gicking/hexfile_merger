@@ -46,6 +46,11 @@ Georg
 
 # Revision History
 
+v1.6.1 (2023-07-15)
+  - migrate to VSCode / PlatformIO file structure for convenience
+  
+----------------
+
 v1.6.0 (2023-06-29)
   - switch from static RAM buffer to dynamic memory image
   - support for 32-bit addresses (see memory_image.h)
