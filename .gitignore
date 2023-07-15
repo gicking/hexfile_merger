@@ -24,7 +24,7 @@ testing/*
 
 # VSCode & PlatformIO files
 .vscode/*
+.vscode/launch.json
 .pio/*
 .pioenvs
 .piolibdeps
-
