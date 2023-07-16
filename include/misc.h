@@ -1,10 +1,10 @@
 /**
   \file misc.h
-   
+
   \author G. Icking-Konert
-   
+
   \brief declaration of misc routines
-   
+
   declaration of routines not really fitting anywhere else
 */
 
@@ -34,11 +34,14 @@
 #define PRM_COLOR_YELLOW        7
 
 
-// system specific delay routines
-#if defined(WIN32)
+// system specific delay routines [ms]
+#if defined(WIN32) || defined(WIN64)
+  #include <windows.h>
   #define SLEEP(a)    Sleep(a)                     //< for sleep(ms) use system specific routines
 #elif defined(__APPLE__) || defined(__unix__)
-  #define SLEEP(a)    usleep((int32_t) a*1000L)    //< for sleep(ms) use system specific routines
+  #include <unistd.h>
+  #include <termios.h>
+  #define SLEEP(a)    usleep((int32_t) (a)*1000L)  //< for sleep(ms) use system specific routines
 #else
   #error OS not supported
 #endif
@@ -59,18 +62,23 @@ void get_version(uint16_t vers, uint8_t *major, uint8_t *minor, uint8_t *build, 
 void get_app_name(char *appFull, uint16_t versID, char *appName, char *versStr);
 
 /// set title of console window
-#if defined(WIN32) || defined(__APPLE__) || defined(__unix__)
+#if defined(WIN32) || defined(WIN64) || defined(__APPLE__) || defined(__unix__)
   void setConsoleTitle(const char *title);
-#endif // WIN32 || __APPLE__ || __unix__
+#endif // WIN32 || WIN64 || __APPLE__ || __unix__
 
 /// set console text color
 void setConsoleColor(uint8_t color);
 
-/// get milliseconds since start of program (as Arduino)
-uint64_t millis(void);
+// skip for RasPi with WiringPi
+#ifndef USE_WIRING
 
-/// get microseconds since start of program (as Arduino)
-uint64_t micros(void);
+  /// get milliseconds since start of program (as Arduino)
+  uint64_t millis(void);
+
+  /// get microseconds since start of program (as Arduino)
+  uint64_t micros(void);
+
+#endif // USE_WIRING
 
 /// check is a string represents a decimal number
 bool isDecString(const char *str);

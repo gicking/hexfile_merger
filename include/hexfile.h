@@ -26,29 +26,42 @@
 **********************/
 
 /// read Motorola s19 file into memory image
-void  import_s19(const char *filename, MemoryImage_s *image, const uint8_t verbose);
+void  import_file_s19(const char *filename, MemoryImage_s *image, const uint8_t verbose);
 
 /// read Intel hex file into memory image
-void  import_ihx(const char *filename, MemoryImage_s *image, const uint8_t verbose);
+void  import_file_ihx(const char *filename, MemoryImage_s *image, const uint8_t verbose);
 
-/// read plain text table (hex addr / data) into memory image
-void  import_txt(const char *filename, MemoryImage_s *image, const uint8_t verbose);
+/// read plain text table (hex addr / data) file into memory image
+void  import_file_txt(const char *filename, MemoryImage_s *image, const uint8_t verbose);
 
-/// read binare file into memory image
-void  import_bin(const char *filename, const MEMIMAGE_ADDR_T addrStart, MemoryImage_s *image, const uint8_t verbose);
+/// read binary file into memory image
+void  import_file_bin(const char *filename, const MEMIMAGE_ADDR_T addrStart, MemoryImage_s *image, const uint8_t verbose);
+
+
+/// read Motorola s19 RAM buffer into memory image
+void  import_buffer_s19(uint8_t *buf, MemoryImage_s *image, const uint8_t verbose);
+
+/// read Intel hex RAM buffer into memory image
+void  import_buffer_ihx(uint8_t *buf, MemoryImage_s *image, const uint8_t verbose);
+
+/// read plain text table (hex addr / data) RAM buffer into memory image
+void  import_buffer_txt(uint8_t *buf, MemoryImage_s *image, const uint8_t verbose);
+
+/// read binary RAM buffer into memory image
+void  import_buffer_bin(const uint8_t *buf, const uint64_t lenBuf, const MEMIMAGE_ADDR_T addrStart, MemoryImage_s *image, const uint8_t verbose);
 
 
 /// export RAM image to file in Motorola s19 format
-void  export_s19(char *filename, MemoryImage_s *image, const uint8_t verbose);
+void  export_file_s19(char *filename, MemoryImage_s *image, const uint8_t verbose);
 
 /// export RAM image to file in Intex hex format
-void  export_ihx(char *filename, MemoryImage_s *image, const uint8_t verbose);
+void  export_file_ihx(char *filename, MemoryImage_s *image, const uint8_t verbose);
 
 /// export memory image to plain text file or print to console
-void  export_txt(char *filename, MemoryImage_s *image, const uint8_t verbose);
+void  export_file_txt(char *filename, MemoryImage_s *image, const uint8_t verbose);
 
 /// export RAM image to binary file (w/o address)
-void  export_bin(char *filename, MemoryImage_s *image, const uint8_t verbose);
+void  export_file_bin(char *filename, MemoryImage_s *image, const uint8_t verbose);
 
 
 /// fill data in memory image with fixed value

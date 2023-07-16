@@ -21,21 +21,22 @@
 #include <ctype.h>
 #include <time.h>
 #include <assert.h>
+#include <errno.h>
 #include "hexfile.h"
 #include "main.h"
 #include "misc.h"
 
 /**
-  \fn void import_s19(const char *filename, MemoryImage_s *image, const uint8_t verbose)
+  \fn void import_file_s19(const char *filename, MemoryImage_s *image, const uint8_t verbose)
 
   \param[in]  filename    full name of file to read 
   \param      image       pointer to memory image. Must be initialized. Existing content is overwritten
   \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
-  Read Motorola s19 hexfile into to memory image. For description of
+  Read Motorola s19 hexfile into memory image. For description of
   Motorola S19 file format see http://en.wikipedia.org/wiki/SREC_(file_format)
 */
-void import_s19(const char *filename, MemoryImage_s *image, const uint8_t verbose) {
+void import_file_s19(const char *filename, MemoryImage_s *image, const uint8_t verbose) {
 
   FILE      *fp;
 
@@ -51,8 +52,10 @@ void import_s19(const char *filename, MemoryImage_s *image, const uint8_t verbos
     shortname++;
 
   // print message
-  if (verbose == INFORM)
-    printf("  read '%s' ... ", shortname);
+  if (verbose == SILENT)
+    printf("  read '%s' ... ", shortname);    
+  else if (verbose == INFORM)
+    printf("  read S19 file '%s' ... ", shortname);
   else if (verbose == CHATTY)
     printf("  read Motorola S19 file '%s' ... ", shortname);
   fflush(stdout);
@@ -60,7 +63,7 @@ void import_s19(const char *filename, MemoryImage_s *image, const uint8_t verbos
   // open file to read
   if (!(fp = fopen(filename, "rb"))) {
     MemoryImage_free(image);
-    Error("Failed to open file %s", filename);
+    Error("Failed to open file %s with error [%s]", filename, strerror(errno));
   }
 
 
@@ -83,7 +86,7 @@ void import_s19(const char *filename, MemoryImage_s *image, const uint8_t verbos
     // check 1st char (must be 'S')
     if (line[0] != 'S') {
       MemoryImage_free(image);
-      Error("Line %u in Motorola S-record file: line does not start with 'S'", linecount);
+      Error("Line %u in Motorola S-record: line does not start with 'S'", linecount);
     }
 
     // record type
@@ -139,7 +142,7 @@ void import_s19(const char *filename, MemoryImage_s *image, const uint8_t verbos
     chkCalc ^= 0xFF;                 // invert checksum
     if (chkCalc != chkRead) {
       MemoryImage_free(image);
-      Error("Line %u in Motorola S-record file: checksum error (0x%02x vs. 0x%02x)", linecount, chkRead, chkCalc);
+      Error("Line %u in Motorola S-record: checksum error (0x%02x vs. 0x%02x)", linecount, chkRead, chkCalc);
     }
 
   } // while !EOF
@@ -153,7 +156,7 @@ void import_s19(const char *filename, MemoryImage_s *image, const uint8_t verbos
   fclose(fp);
 
   // print message
-  if (verbose == SILENT){
+  if (verbose == SILENT) {
     printf("done\n");
   }
   else if (verbose == INFORM) {
@@ -181,21 +184,21 @@ void import_s19(const char *filename, MemoryImage_s *image, const uint8_t verbos
   }
   fflush(stdout);
 
-} // import_s19()
+} // import_file_s19()
 
 
 
 /**
-  \fn void import_ihx(const char *filename, MemoryImage_s *image, const uint8_t verbose)
+  \fn void import_file_ihx(const char *filename, MemoryImage_s *image, const uint8_t verbose)
 
   \param[in]  filename    full name of file to read 
   \param      image       pointer to memory image. Must be initialized. Existing content is overwritten
   \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
-  Read Intel hexfile into to memory image. For description of
+  Read Intel hexfile into memory image. For description of
   Intel hex file format see http://en.wikipedia.org/wiki/Intel_HEX
 */
-void import_ihx(const char *filename, MemoryImage_s *image, const uint8_t verbose) {
+void import_file_ihx(const char *filename, MemoryImage_s *image, const uint8_t verbose) {
 
   FILE      *fp;
 
@@ -211,8 +214,10 @@ void import_ihx(const char *filename, MemoryImage_s *image, const uint8_t verbos
     shortname++;
 
   // print message
-  if (verbose == INFORM)
-    printf("  read '%s' ... ", shortname);
+  if (verbose == SILENT)
+    printf("  read '%s' ... ", shortname);    
+  else if (verbose == INFORM)
+    printf("  read IHX file '%s' ... ", shortname);
   else if (verbose == CHATTY)
     printf("  read Intel IHX file '%s' ... ", shortname);
   fflush(stdout);
@@ -220,7 +225,7 @@ void import_ihx(const char *filename, MemoryImage_s *image, const uint8_t verbos
   // open file to read
   if (!(fp = fopen(filename, "rb"))) {
     MemoryImage_free(image);
-    Error("Failed to open file %s", filename);
+    Error("Failed to open file %s with error [%s]", filename, strerror(errno));
   }
 
 
@@ -248,7 +253,7 @@ void import_ihx(const char *filename, MemoryImage_s *image, const uint8_t verbos
     // check 1st char (must be ':')
     if (line[0] != ':') {
       MemoryImage_free(image);
-      Error("Line %u in Intel hex file: line does not start with ':'", linecount);
+      Error("Line %u in Intel hex record: line does not start with ':'", linecount);
     }
 
     // record length (address + data + checksum)
@@ -301,7 +306,7 @@ void import_ihx(const char *filename, MemoryImage_s *image, const uint8_t verbos
     // extended segment addresses not yet supported
     else if (type==2) {
       MemoryImage_free(image);
-      Error("Line %u in Intel hex file: extended segment address type 2 not supported", linecount);
+      Error("Line %u in Intel hex record: extended segment address type 2 not supported", linecount);
     }
 
     // start segment address (only relevant for 80x86 processor, ignore here)
@@ -326,7 +331,7 @@ void import_ihx(const char *filename, MemoryImage_s *image, const uint8_t verbos
     // unsupported record type -> error
     else {
       MemoryImage_free(image);
-      Error("Line %u in Intel hex file: unsupported type %d", linecount, type);
+      Error("Line %u in Intel hex record: unsupported type %d", linecount, type);
     }
 
 
@@ -340,7 +345,7 @@ void import_ihx(const char *filename, MemoryImage_s *image, const uint8_t verbos
     chkCalc = 255 - chkCalc + 1;                 // calculate 2-complement
     if (chkCalc != chkRead) {
       MemoryImage_free(image);
-      Error("Line %u in Intel hex file: checksum error (read 0x%02x, calc 0x%02x)", linecount, chkRead, chkCalc);
+      Error("Line %u in Intel hex record: checksum error (read 0x%02x, calc 0x%02x)", linecount, chkRead, chkCalc);
     }
 
     // debug
@@ -386,12 +391,12 @@ void import_ihx(const char *filename, MemoryImage_s *image, const uint8_t verbos
   }
   fflush(stdout);
 
-} // import_ihx()
+} // import_file_ihx()
 
 
 
 /**
-  \fn void import_txt(const char *filename, MemoryImage_s *image, const uint8_t verbose)
+  \fn void import_file_txt(const char *filename, MemoryImage_s *image, const uint8_t verbose)
 
   \param[in]  filename    full name of file to read 
   \param      image       pointer to memory image. Must be initialized. Existing content is overwritten
@@ -401,7 +406,7 @@ void import_ihx(const char *filename, MemoryImage_s *image, const uint8_t verbos
   Address and value may be decimal (plain numbers) or hexadecimal (starting with '0x').
   Lines starting with '#' are ignored. No syntax check is performed.
 */
-void import_txt(const char *filename, MemoryImage_s *image, const uint8_t verbose) {
+void import_file_txt(const char *filename, MemoryImage_s *image, const uint8_t verbose) {
 
   FILE      *fp;
 
@@ -417,8 +422,10 @@ void import_txt(const char *filename, MemoryImage_s *image, const uint8_t verbos
     shortname++;
 
   // print message
-  if (verbose == INFORM)
-    printf("  read '%s' ... ", shortname);
+  if (verbose == SILENT)
+    printf("  read '%s' ... ", shortname);    
+  else if (verbose == INFORM)
+    printf("  read table '%s' ... ", shortname);
   else if (verbose == CHATTY)
     printf("  read ASCII table file '%s' ... ", shortname);
   fflush(stdout);
@@ -426,7 +433,7 @@ void import_txt(const char *filename, MemoryImage_s *image, const uint8_t verbos
   // open file to read
   if (!(fp = fopen(filename, "rb"))) {
     MemoryImage_free(image);
-    Error("Failed to open file %s", filename);
+    Error("Failed to open file %s with error [%s]", filename, strerror(errno));
   }
 
 
@@ -469,7 +476,7 @@ void import_txt(const char *filename, MemoryImage_s *image, const uint8_t verbos
     // invalid string format
     else {
       MemoryImage_free(image);
-      Error("Line %u in table file: invalid address '%s'", linecount, sAddr);
+      Error("Line %u in table: invalid address '%s'", linecount, sAddr);
     }
 
 
@@ -488,7 +495,7 @@ void import_txt(const char *filename, MemoryImage_s *image, const uint8_t verbos
     // invalid string format
     else {
       MemoryImage_free(image);
-      Error("Line %u in table file: invalid value '%s'", linecount, sValue);
+      Error("Line %u in table: invalid value '%s'", linecount, sValue);
     }
 
 
@@ -534,12 +541,12 @@ void import_txt(const char *filename, MemoryImage_s *image, const uint8_t verbos
   }
   fflush(stdout);
 
-} // import_txt()
+} // import_file_txt()
 
 
 
 /**
-  \fn void import_bin(const char *filename, const MEMIMAGE_ADDR_T addrStart, MemoryImage_s *image, const uint8_t verbose)
+  \fn void import_file_bin(const char *filename, const MEMIMAGE_ADDR_T addrStart, MemoryImage_s *image, const uint8_t verbose)
 
   \param[in]  filename    full name of file to read 
   \param[in]  addrStart   address offset for binary import
@@ -549,7 +556,7 @@ void import_txt(const char *filename, MemoryImage_s *image, const uint8_t verbos
   Read binary file into memory image. Binary data contains no absolute addresses, just data.
   Therefore a starting address must also be provided.
 */
-void import_bin(const char *filename, const MEMIMAGE_ADDR_T addrStart, MemoryImage_s *image, const uint8_t verbose) {
+void import_file_bin(const char *filename, const MEMIMAGE_ADDR_T addrStart, MemoryImage_s *image, const uint8_t verbose) {
 
   FILE      *fp;
 
@@ -565,8 +572,10 @@ void import_bin(const char *filename, const MEMIMAGE_ADDR_T addrStart, MemoryIma
     shortname++;
 
   // print message
-  if (verbose == INFORM)
-    printf("  read '%s' ... ", shortname);
+  if (verbose == SILENT)
+    printf("  read '%s' ... ", shortname);    
+  else if (verbose == INFORM)
+    printf("  read BIN file '%s' ... ", shortname);
   else if (verbose == CHATTY)
     printf("  read binary file '%s' ... ", shortname);
   fflush(stdout);
@@ -574,7 +583,7 @@ void import_bin(const char *filename, const MEMIMAGE_ADDR_T addrStart, MemoryIma
   // open file to read
   if (!(fp = fopen(filename, "rb"))) {
     MemoryImage_free(image);
-    Error("Failed to open file %s", filename);
+    Error("Failed to open file %s with error [%s]", filename, strerror(errno));
   }
 
 
@@ -636,12 +645,568 @@ void import_bin(const char *filename, const MEMIMAGE_ADDR_T addrStart, MemoryIma
   }
   fflush(stdout);
 
-} // import_bin()
+} // import_file_bin()
 
 
 
 /**
-  \fn void export_s19(char *filename, MemoryImage_s *image, const uint8_t verbose)
+  \fn void import_buffer_s19(uint8_t *buf, MemoryImage_s *image, const uint8_t verbose)
+
+  \param[in]  buf         RAM buffer to read (NUL terminated)
+  \param      image       pointer to memory image. Must be initialized. Existing content is overwritten
+  \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+
+  Import RAM buffer containing Motorola s19 hexfile into memory image. For description of
+  Motorola S19 file format see http://en.wikipedia.org/wiki/SREC_(file_format)
+*/
+void import_buffer_s19(uint8_t *buf, MemoryImage_s *image, const uint8_t verbose) {
+
+  // print message
+  if (verbose == SILENT)
+    printf("  import ... ");    
+  else if (verbose == INFORM)
+    printf("  import S19 buffer ... ");
+  else if (verbose == CHATTY)
+    printf("  import Motorola S19 buffer ... ");
+  fflush(stdout);
+
+
+  //=====================
+  // start data import
+  //=====================
+
+  char              *line, tmp[STRLEN];
+  int               linecount = 0, idx, len;
+  uint8_t           type, chkRead, chkCalc;
+  MEMIMAGE_ADDR_T   address = 0; 
+  int               value = 0;
+
+  // read buffer line by line
+  line = strtok((char*) buf, "\n\r");
+  while (line != NULL) {
+
+    // increase line counter
+    linecount++;
+
+    // check 1st char (must be 'S')
+    if (line[0] != 'S') {
+      MemoryImage_free(image);
+      Error("Line %u in Motorola S-record: line does not start with 'S'", linecount);
+    }
+
+    // record type
+    type = line[1]-48;
+
+    // skip if line contains no data, i.e. line doesn't start with S1, S2 or S3
+    if ((type != 1) && (type != 2) && (type != 3)) {
+      line  = strtok(NULL, "\n\r");
+      continue;
+    }
+
+    // record length (address + data + checksum)
+    sprintf(tmp,"0x00");
+    strncpy(tmp+2, line+2, 2);
+    sscanf(tmp, "%x", &value);
+    len = value;
+    chkCalc = value;
+
+    // address (S1=16bit, S2=24bit, S3=32bit)
+    address = 0;
+    for (int i=0; i<type+1; i++) {
+      sprintf(tmp,"0x00");
+      tmp[2] = line[4+(i*2)];
+      tmp[3] = line[5+(i*2)];
+      sscanf(tmp, "%x", &value);
+      address *= (uint64_t) 256;
+      address += (uint64_t) value;
+      chkCalc += (uint8_t) value;
+    }
+
+    // read record data
+    idx = 6+(type*2);                   // start at position 8, 10, or 12, depending on record type
+    len = len-1-(1+type);               // substract chk and address length
+    for (MEMIMAGE_ADDR_T i=0; i<len; i++) {
+      
+      // get next value
+      sprintf(tmp,"0x00");
+      strncpy(tmp+2, line+idx, 2);      // get next 2 chars as string
+      sscanf(tmp, "%x", &value);        // interpret as hex data
+
+      // store data byte in memory image
+      assert(MemoryImage_addData(image, address+i, (uint8_t) value));
+
+      chkCalc += (uint8_t) value;       // increase checksum
+      idx+=2;                           // advance 2 chars in line
+    }
+
+    // read checksum
+    sprintf(tmp,"0x00");
+    strncpy(tmp+2, line+idx, 2);
+    sscanf(tmp, "%x", &value);
+    chkRead = (uint8_t) value;
+
+    // assert checksum (0xFF xor (sum over all except record type)
+    chkCalc ^= 0xFF;                 // invert checksum
+    if (chkCalc != chkRead) {
+      MemoryImage_free(image);
+      Error("Line %u in Motorola S-record: checksum error (0x%02x vs. 0x%02x)", linecount, chkRead, chkCalc);
+    }
+
+    // get next line
+    line = strtok(NULL, "\n\r");
+
+  } // while ! end of buffer
+
+  //=====================
+  // end data import
+  //=====================
+
+
+  // print message
+  if (verbose == SILENT){
+    printf("done\n");
+  }
+  else if (verbose == INFORM) {
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB)\n", (float) image->numEntries/1024.0/1024.0);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB)\n", (float) image->numEntries/1024.0);
+    else if (image->numEntries > 0)
+      printf("done (%dB)\n", (int) image->numEntries);
+    else
+      printf("done, no data\n");
+  }
+  else if (verbose == CHATTY) {
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0/1024.0, 
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0, 
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 0)
+      printf("done (%dB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (int) image->numEntries, 
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
+    else
+      printf("done, no data\n");
+  }
+  fflush(stdout);
+
+} // import_buffer_s19()
+
+
+
+/**
+  \fn void import_buffer_ihx(uint8_t *buf, MemoryImage_s *image, const uint8_t verbose)
+
+  \param[in]  buf         RAM buffer to read (NUL terminated)
+  \param      image       pointer to memory image. Must be initialized. Existing content is overwritten
+  \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+
+  Read RAM buffer containing Intel hexfile into memory image. For description of
+  Intel hex file format see http://en.wikipedia.org/wiki/Intel_HEX
+*/
+void import_buffer_ihx(uint8_t *buf, MemoryImage_s *image, const uint8_t verbose) {
+
+  // print message
+  if (verbose == SILENT)
+    printf("  import ... ");    
+  else if (verbose == INFORM)
+    printf("  import IHX buffer ... ");
+  else if (verbose == CHATTY)
+    printf("  import Intel IHX buffer ... ");
+  fflush(stdout);
+
+
+  //=====================
+  // start data import
+  //=====================
+
+  char              *line, tmp[STRLEN];
+  int               linecount = 0, idx, len;
+  uint8_t           type, chkRead, chkCalc;
+  MEMIMAGE_ADDR_T   address = 0; 
+  uint64_t          addrOffset, addrJumpStart;
+  int               value = 0;
+
+  // avoid compiler warning (variable not yet used). See https://stackoverflow.com/questions/3599160/unused-parameter-warnings-in-c
+  (void) (addrJumpStart);
+
+  // read data line by line
+  addrOffset = 0x0000000000000000;
+  line = strtok((char*) buf, "\n\r");
+  while (line != NULL) {
+
+    // increase line counter
+    linecount++;
+
+    // check 1st char (must be ':')
+    if (line[0] != ':') {
+      MemoryImage_free(image);
+      Error("Line %u in Intel hex record: line does not start with ':'", linecount);
+    }
+
+    // record length (address + data + checksum)
+    sprintf(tmp,"0x00");
+    strncpy(tmp+2, line+1, 2);
+    sscanf(tmp, "%x", &value);
+    len = value;
+    chkCalc = len;
+
+    // 16b address
+    sprintf(tmp,"0x0000");
+    strncpy(tmp+2, line+3, 4);
+    sscanf(tmp, "%x", &value);
+    chkCalc += (uint8_t) (value >> 8);
+    chkCalc += (uint8_t)  value;
+    address = (uint64_t) (value + addrOffset);	   // add offset for >64kB addresses
+
+    // record type
+    sprintf(tmp,"0x00");
+    strncpy(tmp+2, line+7, 2);
+    sscanf(tmp, "%x", &value);
+    type = value;
+    chkCalc += type;
+
+    // record contains data
+    if (type==0) {
+
+      // get data
+      idx = 9;                            // start at index 9
+      for (int i=0; i<len; i++) {
+        
+        // get next value
+        sprintf(tmp,"0x00");
+        strncpy(tmp+2, line+idx, 2);      // get next 2 chars as string
+        sscanf(tmp, "%x", &value);        // interpret as hex data
+        
+        // store data byte in memory image
+        assert(MemoryImage_addData(image, address+i, (uint8_t) value));
+        
+        chkCalc += value;                 // increase checksum
+        idx+=2;                           // advance 2 chars in line
+      }
+
+    } // type==0
+
+    // EOF indicator
+    else if (type==1) {
+      line  = strtok(NULL, "\n\r");
+      continue;
+    }
+  
+    // extended segment addresses not yet supported
+    else if (type==2) {
+      MemoryImage_free(image);
+      Error("Line %u in Intel hex record: extended segment address type 2 not supported", linecount);
+    }
+
+    // start segment address (only relevant for 80x86 processor, ignore here)
+    else if (type==3) {
+      line  = strtok(NULL, "\n\r");
+      continue;
+    }
+
+    // extended address (=upper 16b of address for following data records)
+    else if (type==4) {
+      idx = 13;                       // start at index 13
+      sprintf(tmp,"0x0000");
+      strncpy(tmp+2, line+9, 4);      // get next 4 chars as string
+      sscanf(tmp, "%x", &value);      // interpret as hex data
+      chkCalc += (uint8_t) (value >> 8);
+      chkCalc += (uint8_t)  value;
+      addrOffset = ((uint64_t) value) << 16;
+    } // type==4
+
+    // start linear address records. Can be ignored, see http://www.keil.com/support/docs/1584/
+    else if (type==5) {
+      line  = strtok(NULL, "\n\r");
+      continue;
+    }
+
+    // unsupported record type -> error
+    else {
+      MemoryImage_free(image);
+      Error("Line %u in Intel hex record: unsupported type %d", linecount, type);
+    }
+
+
+    // checksum
+    sprintf(tmp,"0x00");
+    strncpy(tmp+2, line+idx, 2);
+    sscanf(tmp, "%x", &value);
+    chkRead = value;
+
+    // assert checksum (0xFF xor (sum over all except record type))
+    chkCalc = 255 - chkCalc + 1;                 // calculate 2-complement
+    if (chkCalc != chkRead) {
+      MemoryImage_free(image);
+      Error("Line %u in Intel hex record: checksum error (read 0x%02x, calc 0x%02x)", linecount, chkRead, chkCalc);
+    }
+
+    // debug
+    //printf("%ld\n", linecount);
+    //fflush(stdout);
+
+    // get next line
+    line = strtok(NULL, "\n\r");
+
+  } // while ! end of buffer
+
+  //=====================
+  // end data import
+  //=====================
+
+
+  // print message
+  if (verbose == SILENT){
+    printf("done\n");
+  }
+  else if (verbose == INFORM) {
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB)\n", (float) image->numEntries/1024.0/1024.0);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB)\n", (float) image->numEntries/1024.0);
+    else if (image->numEntries > 0)
+      printf("done (%dB)\n", (int) image->numEntries);
+    else
+      printf("done, no data\n");
+  }
+  else if (verbose == CHATTY) {
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0/1024.0, 
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0, 
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 0)
+      printf("done (%dB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (int) image->numEntries, 
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
+    else
+      printf("done, no data\n");
+  }
+  fflush(stdout);
+
+} // import_buffer_ihx()
+
+
+
+/**
+  \fn void import_buffer_txt(uint8_t *buf, MemoryImage_s *image, const uint8_t verbose)
+
+  \param[in]  buf         RAM buffer to read (NUL terminated)
+  \param      image       pointer to memory image. Must be initialized. Existing content is overwritten
+  \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+
+  Read plain table (address / value) file into image memory.
+  Address and value may be decimal (plain numbers) or hexadecimal (starting with '0x').
+  Lines starting with '#' are ignored. No syntax check is performed.
+*/
+void import_buffer_txt(uint8_t *buf, MemoryImage_s *image, const uint8_t verbose) {
+
+  // print message
+  if (verbose == SILENT)
+    printf("  import ... ");    
+  else if (verbose == INFORM)
+    printf("  import table buffer ... ");
+  else if (verbose == CHATTY)
+    printf("  import ASCII table buffer ... ");
+  fflush(stdout);
+
+
+  //=====================
+  // start data import
+  //=====================
+
+  char            *line;
+  int             linecount  = 0;
+  char            sAddr[STRLEN], sValue[STRLEN];
+  uint64_t        address = 0; 
+  unsigned int    value = 0;
+
+  // read data line by line
+  line = strtok((char*) buf, "\n\r");
+  while (line != NULL) {
+
+    // increase line counter
+    linecount++;
+
+    // if line starts with '#' ignore as comment
+    if (line[0] == '#') {
+      line  = strtok(NULL, "\n\r");
+      continue;
+    }
+
+    // get address and value as string
+    sscanf(line, "%s %s", sAddr, sValue);
+
+
+    //////////
+    // extract address
+    //////////
+
+    // if string is in hex format, read it
+    if (isHexString(sAddr))
+      sscanf(sAddr, "%" SCNx64, &address);
+
+    // if string is in decimal format, read it
+    else if (isDecString(sAddr))
+      sscanf(sAddr, "%" SCNu64, &address);
+
+    // invalid string format
+    else {
+      MemoryImage_free(image);
+      Error("Line %u in table: invalid address '%s'", linecount, sAddr);
+    }
+
+
+    //////////
+    // extract value
+    //////////
+
+    // if string is in hex format, read it
+    if (isHexString(sValue))
+      sscanf(sValue, "%x", &value);
+
+    // if string is in decimal format, read it
+    else if (isDecString(sValue))
+      sscanf(sValue, "%d", &value);
+
+    // invalid string format
+    else {
+      MemoryImage_free(image);
+      Error("Line %u in table: invalid value '%s'", linecount, sValue);
+    }
+
+    // store data byte in memory image
+    assert(MemoryImage_addData(image, (MEMIMAGE_ADDR_T) address, (uint8_t) value));
+
+    // get next line
+    line  = strtok(NULL, "\n\r");
+
+  } // while ! end of buffer
+
+  //=====================
+  // end data import
+  //=====================
+
+
+  // print message
+  if (verbose == SILENT){
+    printf("done\n");
+  }
+  else if (verbose == INFORM) {
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB)\n", (float) image->numEntries/1024.0/1024.0);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB)\n", (float) image->numEntries/1024.0);
+    else if (image->numEntries > 0)
+      printf("done (%dB)\n", (int) image->numEntries);
+    else
+      printf("done, no data\n");
+  }
+  else if (verbose == CHATTY) {
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0/1024.0, 
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0, 
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 0)
+      printf("done (%dB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (int) image->numEntries, 
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
+    else
+      printf("done, no data\n");
+  }
+  fflush(stdout);
+
+} // import_buffer_txt()
+
+
+
+/**
+  \fn void import_buffer_bin(const uint8_t *buf, const uint64_t lenBuf, const MEMIMAGE_ADDR_T addrStart, MemoryImage_s *image, const uint8_t verbose)
+
+  \param[in]  buf         RAM buffer to read (NUL terminated)
+  \param[in]  num         length of RAM buffer
+  \param[in]  addrStart   address offset for binary import
+  \param      image       pointer to memory image. Must be initialized. Existing content is overwritten
+  \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+
+  Read binary file into memory image. Binary data contains no absolute addresses, just data.
+  Therefore a starting address must also be provided.
+*/
+void import_buffer_bin(const uint8_t *buf, const uint64_t lenBuf, const MEMIMAGE_ADDR_T addrStart, MemoryImage_s *image, const uint8_t verbose) {
+
+  // print message
+  if (verbose == SILENT)
+    printf("  import ... ");    
+  else if (verbose == INFORM)
+    printf("  import BIN buffer ... ");
+  else if (verbose == CHATTY)
+    printf("  import binary buffer ... ");
+  fflush(stdout);
+
+
+  //=====================
+  // start data import
+  //=====================
+
+  // read bytes and store to image
+  MEMIMAGE_ADDR_T  address = addrStart;
+  uint8_t  value;
+  for (uint64_t i=0; i<lenBuf; i++) {
+    
+    // read next byte
+    value = buf[i];
+
+    // store in memory image
+    assert(MemoryImage_addData(image, (MEMIMAGE_ADDR_T) address, (uint8_t) value));
+
+    // increment address
+    address++;
+
+  } // while !EOF
+
+  //=====================
+  // end data import
+  //=====================
+
+
+  // print message
+  if (verbose == SILENT) {
+    printf("done\n");
+  }
+  else if (verbose == INFORM) {
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB)\n", (float) image->numEntries/1024.0/1024.0);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB)\n", (float) image->numEntries/1024.0);
+    else if (image->numEntries > 0)
+      printf("done (%dB)\n", (int) image->numEntries);
+    else
+      printf("done, no data\n");
+  }
+  else if (verbose == CHATTY) {
+    if (image->numEntries > 1024*1024)
+      printf("done (%1.1fMB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0/1024.0, 
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 1024)
+      printf("done (%1.1fkB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (float) image->numEntries/1024.0, 
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
+    else if (image->numEntries > 0)
+      printf("done (%dB in [0x%" PRIx64 "; 0x%" PRIx64 "])\n", (int) image->numEntries, 
+        (uint64_t) image->memoryEntries[0].address, (uint64_t) image->memoryEntries[image->numEntries-1].address);
+    else
+      printf("done, no data\n");
+  }
+  fflush(stdout);
+
+} // import_buffer_bin()
+
+
+
+/**
+  \fn void export_file_s19(char *filename, MemoryImage_s *image, const uint8_t verbose)
 
   \param[in]  filename    name of output file
   \param[in]  image       pointer to memory image
@@ -650,7 +1215,7 @@ void import_bin(const char *filename, const MEMIMAGE_ADDR_T addrStart, MemoryIma
   Export memory image to Motorola s19 hexfile. For description of
   Motorola S19 file format see http://en.wikipedia.org/wiki/SREC_(file_format)
 */
-void export_s19(char *filename, MemoryImage_s *image, const uint8_t verbose) {
+void export_file_s19(char *filename, MemoryImage_s *image, const uint8_t verbose) {
 
   FILE      *fp;               // file pointer
   char      *shortname;        // filename w/o path
@@ -694,7 +1259,7 @@ void export_s19(char *filename, MemoryImage_s *image, const uint8_t verbose) {
   fp=fopen(filename,"wb");
   if (!fp) {
     MemoryImage_free(image);
-    Error("Failed to create file %s", filename);
+    Error("Failed to create file %s with error [%s]", filename, strerror(errno));
   }
 
   // start with dummy header line to avoid 'srecord' warning
@@ -795,12 +1360,12 @@ void export_s19(char *filename, MemoryImage_s *image, const uint8_t verbose) {
   }
   fflush(stdout);
 
-} // export_s19
+} // export_file_s19
 
 
 
 /**
-  \fn void export_ihx(char *filename, MemoryImage_s *image, const uint8_t verbose);
+  \fn void export_file_ihx(char *filename, MemoryImage_s *image, const uint8_t verbose);
 
   \param[in]  filename    name of output file
   \param[in]  image       pointer to memory image
@@ -810,7 +1375,7 @@ void export_s19(char *filename, MemoryImage_s *image, const uint8_t verbose) {
   Intel hex file format see http://en.wikipedia.org/wiki/Intel_HEX
 */
 
-void export_ihx(char *filename, MemoryImage_s *image, const uint8_t verbose) {
+void export_file_ihx(char *filename, MemoryImage_s *image, const uint8_t verbose) {
 
   FILE      *fp;               // file pointer
   char      *shortname;        // filename w/o path
@@ -856,7 +1421,7 @@ void export_ihx(char *filename, MemoryImage_s *image, const uint8_t verbose) {
   fp=fopen(filename,"wb");
   if (!fp) {
     MemoryImage_free(image);
-    Error("Failed to create file %s", filename);
+    Error("Failed to create file %s with error [%s]", filename, strerror(errno));
   }
 
   // use ELA records if address range is greater than 16 bits
@@ -944,12 +1509,12 @@ void export_ihx(char *filename, MemoryImage_s *image, const uint8_t verbose) {
   }
   fflush(stdout);
 
-} // export_ihx
+} // export_file_ihx
 
 
 
 /**
-  void export_txt(char *filename, MemoryImage_s *image, const uint8_t verbose)
+  void export_file_txt(char *filename, MemoryImage_s *image, const uint8_t verbose)
 
   \param[in]  filename    name of output file or stdout ('console')
   \param[in]  image       pointer to memory image
@@ -957,7 +1522,7 @@ void export_ihx(char *filename, MemoryImage_s *image, const uint8_t verbose) {
 
   Export memory image to file with plain text table (hex addr / hex data)
 */
-void export_txt(char *filename, MemoryImage_s *image, const uint8_t verbose) {
+void export_file_txt(char *filename, MemoryImage_s *image, const uint8_t verbose) {
 
   FILE      *fp;               // file pointer
   char      *shortname;        // filename w/o path
@@ -1000,7 +1565,7 @@ void export_txt(char *filename, MemoryImage_s *image, const uint8_t verbose) {
     fp=fopen(filename,"wb");
     if (!fp) {
       MemoryImage_free(image);
-      Error("Failed to create file %s", filename);
+      Error("Failed to create file %s with error [%s]", filename, strerror(errno));
     }
 
   } // output to file
@@ -1055,12 +1620,12 @@ void export_txt(char *filename, MemoryImage_s *image, const uint8_t verbose) {
   }
   fflush(stdout);
 
-} // export_txt
+} // export_file_txt
 
 
 
 /**
-   \fn void export_bin(char *filename, MemoryImage_s *image, const uint8_t verbose)
+   \fn void export_file_bin(char *filename, MemoryImage_s *image, const uint8_t verbose)
 
    \param[in]  filename    name of output file
    \param[in]  image       pointer to memory image
@@ -1069,7 +1634,7 @@ void export_txt(char *filename, MemoryImage_s *image, const uint8_t verbose) {
    Export memory image to binary file. Note that start address is not stored, and that
    binary format does not allow for "holes" in the file, i.e. undefined data is stored as 0x00.
 */
-void export_bin(char *filename, MemoryImage_s *image, const uint8_t verbose) {
+void export_file_bin(char *filename, MemoryImage_s *image, const uint8_t verbose) {
 
   FILE      *fp;                  // file pointer
   uint64_t  addrStart, addrStop;  // address range to export
@@ -1091,7 +1656,7 @@ void export_bin(char *filename, MemoryImage_s *image, const uint8_t verbose) {
   if (verbose == SILENT)
     printf("  export '%s' ... ", shortname);
   else if (verbose == INFORM)
-    printf("  export binary '%s' ... ", shortname);
+    printf("  export BIN file '%s' ... ", shortname);
   else if (verbose == CHATTY)
     printf("  export binary file '%s' ... ", shortname);
   fflush(stdout);
@@ -1100,7 +1665,7 @@ void export_bin(char *filename, MemoryImage_s *image, const uint8_t verbose) {
   fp=fopen(filename,"wb");
   if (!fp) {
     MemoryImage_free(image);
-    Error("Failed to create file %s", filename);
+    Error("Failed to create file %s with error [%s]", filename, strerror(errno));
   }
 
   // get address range including "holes"
@@ -1155,7 +1720,7 @@ void export_bin(char *filename, MemoryImage_s *image, const uint8_t verbose) {
   }
   fflush(stdout);
 
-} // export_bin
+} // export_file_bin
 
 
 

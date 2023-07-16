@@ -5,7 +5,8 @@
 
   \brief implementation of main routine
 
-  this is the main file containing browsing input parameters, calling the import and export routines
+  this is the main file containing browsing input parameters, 
+  calling the import and export routines
 
   \note program not yet fully tested!
 */
@@ -16,6 +17,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include <errno.h>
 #include "hexfile.h"
 #include "misc.h"
 #include "version.h"
@@ -43,6 +45,18 @@ int main(int argc, char ** argv) {
   MemoryImage_s   image;              // memory image buffer as list of (addr, value)
   bool            printHelp;          // flag for printing help page
   char            tmp[STRLEN+106];    // misc string buffer
+
+
+  // debug: print arguments
+  /*
+  printf("\n\narguments:\n");
+  for (i=0; i<argc; i++) {
+    //printf("  %d: '%s'\n", (int) i, argv[i]);
+    printf("%s ", argv[i]);
+  }
+  printf("\n\n");
+  exit(1);
+  */
 
 
   // initialize memory image
@@ -369,19 +383,80 @@ int main(int argc, char ** argv) {
         sscanf(tmp, "%" SCNx64, &addrStart);
       }
 
-      // convert to memory image, depending on file type
-      if ((p != NULL ) && (!strcmp(p, ".s19")))          // Motorola S-record format
-        import_s19(infile, &image, verbose);
-      else if ((p != NULL ) && (!strcmp(p, ".hex") || (!strcmp(p, ".ihx"))))  // Intel hex format
-        import_ihx(infile, &image, verbose);
-      else if ((p != NULL ) && (!strcmp(p, ".txt")))     // text table (hex addr / data)
-        import_txt(infile, &image, verbose);
-      else if ((p != NULL ) && (!strcmp(p, ".bin")))     // binary file
-        import_bin(infile, addrStart, &image, verbose);
-      else {
-        MemoryImage_free(&image);
-        Error("Input file %s has unsupported format (*.s19, *.hex, *.ihx, *.txt, *.bin)", infile);
-      }
+
+      // option 1: read file into buffer, then interpret
+      #if defined(USE_FILE_BUFFER)
+
+        FILE      *fp;
+        uint8_t   *buf;
+        if (!(fp = fopen(infile, "rb"))) {
+          MemoryImage_free(&image);
+          Error("Failed to open file %s with error [%s]", infile, strerror(errno));
+        }
+
+        // get filesize
+        fseek(fp, 0, SEEK_END);
+        size_t lenFile = ftell(fp);
+        fseek(fp, 0, SEEK_SET);
+
+        // allocate RAM buffer
+        if (!(buf = malloc(lenFile+1))) {
+          MemoryImage_free(&image);
+          Error("Failed to allocate buffer of %ldB", (long) lenFile+1);
+        }
+
+        // read file into RAM buffer
+        fread(buf, lenFile, 1, fp);
+        buf[lenFile] = '\0';
+
+        // close file again
+        fclose(fp);
+
+        // convert to memory image, depending on file type
+        if ((p != NULL ) && (!strcmp(p, ".s19"))) {        // Motorola S-record format
+          import_buffer_s19(buf, &image, verbose);
+        }
+        else if ((p != NULL ) && (!strcmp(p, ".hex") || (!strcmp(p, ".ihx")))) {  // Intel hex format
+          import_buffer_ihx(buf, &image, verbose);
+        }
+        else if ((p != NULL ) && (!strcmp(p, ".txt"))) {   // text table (hex addr / data)
+          import_buffer_txt(buf, &image, verbose);
+        }
+        else if ((p != NULL ) && (!strcmp(p, ".bin"))) {   // binary file
+          import_buffer_bin(buf, lenFile, addrStart, &image, verbose);
+        }
+        else {
+          MemoryImage_free(&image);
+          free(buf);
+          Error("Input file %s has unsupported format (*.s19, *.hex, *.ihx, *.txt, *.bin)", infile);
+        }
+
+        // release RAM buffer
+        free(buf);
+
+
+      //  option 2: import file directly
+      #else
+      
+        // convert to memory image, depending on file type
+        if ((p != NULL ) && (!strcmp(p, ".s19"))) {        // Motorola S-record format
+          import_file_s19(infile, &image, verbose);
+        }
+        else if ((p != NULL ) && (!strcmp(p, ".hex") || (!strcmp(p, ".ihx")))) {  // Intel hex format
+          import_file_ihx(infile, &image, verbose);
+        }
+        else if ((p != NULL ) && (!strcmp(p, ".txt"))) {   // text table (hex addr / data)
+          import_file_txt(infile, &image, verbose);
+        }
+        else if ((p != NULL ) && (!strcmp(p, ".bin"))) {   // binary file
+          import_file_bin(infile, addrStart, &image, verbose);
+        }
+        else {
+          MemoryImage_free(&image);
+          Error("Input file %s has unsupported format (*.s19, *.hex, *.ihx, *.txt, *.bin)", infile);
+        }
+
+      #endif // file import
 
     } // import file
 
@@ -398,13 +473,13 @@ int main(int argc, char ** argv) {
       // export in format depending on file extension
       char *p = strrchr(outfile, '.');
       if ((p != NULL ) && (!strcmp(p, ".s19")))          // Motorola S-record format
-        export_s19(outfile, &image, verbose);
+        export_file_s19(outfile, &image, verbose);
       else if ((p != NULL ) && ((!strcmp(p, ".hex")) || (!strcmp(p, ".ihx"))))  // Intel hex format
-        export_ihx(outfile, &image, verbose);
+        export_file_ihx(outfile, &image, verbose);
       else if ((p != NULL ) && (!strcmp(p, ".txt")))     // text table (hex addr / data)
-        export_txt(outfile, &image, verbose);
+        export_file_txt(outfile, &image, verbose);
       else if ((p != NULL ) && (!strcmp(p, ".bin")))     // binary file
-        export_bin(outfile, &image, verbose);
+        export_file_bin(outfile, &image, verbose);
       else {
         MemoryImage_free(&image);
         Error("Output file %s has unsupported format (*.s19, *.hex, *.ihx, *.txt, *.bin)", outfile);
@@ -417,7 +492,7 @@ int main(int argc, char ** argv) {
     else if (!strcmp(argv[i], "-print")) {
 
       // print to stdout
-      export_txt("console", &image, verbose);
+      export_file_txt("console", &image, verbose);
 
     } // print memory image
 

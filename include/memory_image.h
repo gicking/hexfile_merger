@@ -32,7 +32,7 @@
 #define MEMIMAGE_ADDR_T         uint64_t
 
 /// grow/shrink factor for memory image buffer. Must be >1.0!
-#define MEMIMAGE_BUFFER_MARGIN  1.2
+#define MEMIMAGE_BUFFER_MARGIN  1.3
 
 /// max. size for memory image buffer [B]
 #define MEMIMAGE_BUFFER_MAX     50L*1024L*1024L

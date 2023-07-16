@@ -1,6 +1,7 @@
 # compiler settings
 CC     = gcc
 CFLAGS = -Wall -I./include -g
+#CFLAGS += -DUSE_FILE_BUFFER		# read file into buffer, then interpret
 LFLAGS = -lm
 
 # OS-dependent delete commands for 'make clean'
