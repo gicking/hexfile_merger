@@ -112,6 +112,11 @@ bool MemoryImage_deleteData(MemoryImage_s* image, const MEMIMAGE_ADDR_T address)
 /// @return operation successful
 bool MemoryImage_getData(const MemoryImage_s* image, const MEMIMAGE_ADDR_T address, uint8_t *data);
 
+/// @brief calculate Fletcher-16 checksum over addresses and data in memory image (see https://en.wikipedia.org/wiki/Fletcher%27s_checksum)
+/// @param[in]  image     pointer to memory image 
+/// @return calculated Fletcher-16 checksum
+uint16_t MemoryImage_checksum_fletcher16(const MemoryImage_s* image);
+
 /// @brief fill address range [addrStart;addrEnd] with fixed value 
 /// @param      image     pointer to memory image
 /// @param[in]  addrStart start address (inclusive)

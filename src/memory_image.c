@@ -287,6 +287,32 @@ bool MemoryImage_getData(const MemoryImage_s* image, const MEMIMAGE_ADDR_T addre
 } // MemoryImage_getData()
 
 
+uint16_t MemoryImage_checksum_fletcher16(const MemoryImage_s* image) {
+    
+    uint16_t sum1 = 0;
+    uint16_t sum2 = 0;
+
+    // loop over memory image
+    for (size_t i = 0; i < image->numEntries; i++) {
+
+        // add address bytes to checksum
+        uint8_t* pAddr = (uint8_t*) &(image->memoryEntries[i].address);
+        for (size_t i = 0; i < sizeof(MEMIMAGE_ADDR_T); i++) {
+            sum1 = (sum1 + pAddr[i]) % 255;
+            sum2 = (sum2 + sum1) % 255;
+        }
+
+        // add data to checksum
+        sum1 = (sum1 + image->memoryEntries[i].data) % 255;
+        sum2 = (sum2 + sum1) % 255;
+    }
+
+    // return calculated checksum
+    return (sum2 << 8) | sum1;
+
+} // MemoryImage_checksum_fletcher16()
+
+
 bool MemoryImage_fillValue(MemoryImage_s* image, const MEMIMAGE_ADDR_T addrStart, const MEMIMAGE_ADDR_T addrEnd, const uint8_t value) {
 
     bool result = true;

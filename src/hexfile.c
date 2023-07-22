@@ -1901,9 +1901,9 @@ void cut_image(MemoryImage_s *image, const MEMIMAGE_ADDR_T addrStart, const MEMI
 
   // print message
   if (verbose == INFORM)
-    printf("  clear image ... ");
+    printf("  cut image ... ");
   else if (verbose == CHATTY)
-    printf("  clear memory image ... ");
+    printf("  cut memory image ... ");
   fflush(stdout);
 
   // simple checks of address window

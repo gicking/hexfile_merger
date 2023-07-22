@@ -183,6 +183,14 @@ int main(int argc, char ** argv) {
     } // print
 
 
+    // skip checksum
+    else if (!strcmp(argv[i], "-checksum")) {
+      
+      // dummy
+
+    } // checksum
+
+
     // skip memory filling. Just check parameter type
     else if (!strcmp(argv[i], "-fill")) {
       if (i+3<argc) {
@@ -314,6 +322,7 @@ int main(int argc, char ** argv) {
     printf("    -import [infile [addr]]             import from file to image. For binary file (*.bin) provide start address (in hex)\n");
     printf("    -export [outfile]                   export image to file\n");
     printf("    -print                              print image to console\n");
+    printf("    -checksum                           print Fletcher-16 checksum over data and addresses\n");
     printf("    -fill [addrStart addrStop val]      fill specified range with fixed value (addr & val in hex)\n");
     printf("    -fillRand [addrStart addrStop]      fill specified range with random values in 0-255 (addr in hex)\n");
     printf("    -clip [addrStart addrStop]          clip image to specified range (addr in hex)\n");
@@ -495,6 +504,15 @@ int main(int argc, char ** argv) {
       export_file_txt("console", &image, verbose);
 
     } // print memory image
+
+
+    // print Fletcher-16 checksum over addresses and data (see https://en.wikipedia.org/wiki/Fletcher%27s_checksum)
+    else if (!strcmp(argv[i], "-checksum")) {
+
+      // print to stdout
+      printf("  Fletcher-16 chk = 0x%04x\n", (int) MemoryImage_checksum_fletcher16(&image));
+
+    } // print checksum
 
 
     // fill memory range with fixed value
