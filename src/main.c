@@ -72,16 +72,12 @@ int main(int argc, char ** argv) {
   g_backgroundOperation = false;      // assume foreground application
   verbose               = INFORM;     // verbosity level medium
   
-  // debug: print arguments
-  /*
-  printf("\n\narguments:\n");
-  for (int i=0; i<argc; i++) {
-    printf("  %d: '%s'\n", (int) i, argv[i]);
-    //printf("%s ", argv[i]);
-  }
-  printf("\n\n");
-  exit(1);
-  */
+
+  // debug: set memory image debug level
+  #if defined(MEMIMAGE_DEBUG)
+    MemoryImage_setDebug(&image, 2);
+  #endif
+
 
   // get app name & version, and change console title
   get_app_name(argv[0], VERSION, appname, version);
@@ -112,7 +108,7 @@ int main(int argc, char ** argv) {
       // get verbosity level
       if (i+1<argc) {
         i++;
-	if ((!isDecString(argv[i])) || (sscanf(argv[i],"%d", &verbose) <= 0) || (verbose < 0) || (verbose > 3))
+        if ((!isDecString(argv[i])) || (sscanf(argv[i],"%d", &verbose) <= 0) || (verbose < 0) || (verbose > 3))
         {
           printf("\ncommand '-v/-verbose' requires a decimal parameter (0..3)\n");
           printHelp = true;
@@ -322,7 +318,7 @@ int main(int argc, char ** argv) {
     printf("    -import [infile [addr]]             import from file to image. For binary file (*.bin) provide start address (in hex)\n");
     printf("    -export [outfile]                   export image to file\n");
     printf("    -print                              print image to console\n");
-    printf("    -checksum                           print Fletcher-16 checksum over data and addresses\n");
+    printf("    -checksum                           print CRC32-IEEE checksum over data ranges in image\n");
     printf("    -fill [addrStart addrStop val]      fill specified range with fixed value (addr & val in hex)\n");
     printf("    -fillRand [addrStart addrStop]      fill specified range with random values in 0-255 (addr in hex)\n");
     printf("    -clip [addrStart addrStop]          clip image to specified range (addr in hex)\n");
@@ -392,80 +388,23 @@ int main(int argc, char ** argv) {
         sscanf(tmp, "%" SCNx64, &addrStart);
       }
 
-
-      // option 1: read file into buffer, then interpret
-      #if defined(USE_FILE_BUFFER)
-
-        FILE      *fp;
-        uint8_t   *buf;
-        if (!(fp = fopen(infile, "rb"))) {
-          MemoryImage_free(&image);
-          Error("Failed to open file %s with error [%s]", infile, strerror(errno));
-        }
-
-        // get filesize
-        fseek(fp, 0, SEEK_END);
-        size_t lenFile = ftell(fp);
-        fseek(fp, 0, SEEK_SET);
-
-        // allocate RAM buffer
-        if (!(buf = malloc(lenFile+1))) {
-          MemoryImage_free(&image);
-          Error("Failed to allocate buffer of %ldB", (long) lenFile+1);
-        }
-
-        // read file into RAM buffer
-        fread(buf, lenFile, 1, fp);
-        buf[lenFile] = '\0';
-
-        // close file again
-        fclose(fp);
-
-        // convert to memory image, depending on file type
-        if ((p != NULL ) && (!strcmp(p, ".s19"))) {        // Motorola S-record format
-          import_buffer_s19(buf, &image, verbose);
-        }
-        else if ((p != NULL ) && (!strcmp(p, ".hex") || (!strcmp(p, ".ihx")))) {  // Intel hex format
-          import_buffer_ihx(buf, &image, verbose);
-        }
-        else if ((p != NULL ) && (!strcmp(p, ".txt"))) {   // text table (hex addr / data)
-          import_buffer_txt(buf, &image, verbose);
-        }
-        else if ((p != NULL ) && (!strcmp(p, ".bin"))) {   // binary file
-          import_buffer_bin(buf, lenFile, addrStart, &image, verbose);
-        }
-        else {
-          MemoryImage_free(&image);
-          free(buf);
-          Error("Input file %s has unsupported format (*.s19, *.hex, *.ihx, *.txt, *.bin)", infile);
-        }
-
-        // release RAM buffer
-        free(buf);
-
-
-      //  option 2: import file directly
-      #else
-      
-        // convert to memory image, depending on file type
-        if ((p != NULL ) && (!strcmp(p, ".s19"))) {        // Motorola S-record format
-          import_file_s19(infile, &image, verbose);
-        }
-        else if ((p != NULL ) && (!strcmp(p, ".hex") || (!strcmp(p, ".ihx")))) {  // Intel hex format
-          import_file_ihx(infile, &image, verbose);
-        }
-        else if ((p != NULL ) && (!strcmp(p, ".txt"))) {   // text table (hex addr / data)
-          import_file_txt(infile, &image, verbose);
-        }
-        else if ((p != NULL ) && (!strcmp(p, ".bin"))) {   // binary file
-          import_file_bin(infile, addrStart, &image, verbose);
-        }
-        else {
-          MemoryImage_free(&image);
-          Error("Input file %s has unsupported format (*.s19, *.hex, *.ihx, *.txt, *.bin)", infile);
-        }
-
-      #endif // file import
+      // import file to memory image, depending on type
+      if ((p != NULL ) && ((!strcmp(p, ".s19")) || (!strcmp(p, ".S19")))) {        // Motorola S-record format
+        import_file_s19(infile, &image, verbose);
+      }
+      else if ((p != NULL ) && (!strcmp(p, ".hex") || (!strcmp(p, ".HEX")) || (!strcmp(p, ".ihx")) || (!strcmp(p, ".IHX")))) {  // Intel hex format
+        import_file_ihx(infile, &image, verbose);
+      }
+      else if ((p != NULL ) && ((!strcmp(p, ".txt")) || (!strcmp(p, ".TXT")))) {   // text table (hex addr / data)
+        import_file_txt(infile, &image, verbose);
+      }
+      else if ((p != NULL ) && ((!strcmp(p, ".bin")) || (!strcmp(p, ".BIN")))) {   // binary file
+        import_file_bin(infile, addrStart, &image, verbose);
+      }
+      else {
+        MemoryImage_free(&image);
+        Error("Input file %s has unsupported format (*.s19, *.hex, *.ihx, *.txt, *.bin)", infile);
+      }
 
     } // import file
 
@@ -479,15 +418,15 @@ int main(int argc, char ** argv) {
       // get file name
       strncpy(outfile, argv[++i], STRLEN-1);
 
-      // export in format depending on file extension
+      // export to file with format depending on extension
       char *p = strrchr(outfile, '.');
-      if ((p != NULL ) && (!strcmp(p, ".s19")))          // Motorola S-record format
+      if ((p != NULL ) && ((!strcmp(p, ".s19")) || (!strcmp(p, ".S19"))))          // Motorola S-record format
         export_file_s19(outfile, &image, verbose);
-      else if ((p != NULL ) && ((!strcmp(p, ".hex")) || (!strcmp(p, ".ihx"))))  // Intel hex format
+      else if ((p != NULL ) && ((!strcmp(p, ".hex")) || (!strcmp(p, ".HEX")) || (!strcmp(p, ".ihx")) || (!strcmp(p, ".IHX"))))  // Intel hex format
         export_file_ihx(outfile, &image, verbose);
-      else if ((p != NULL ) && (!strcmp(p, ".txt")))     // text table (hex addr / data)
+      else if ((p != NULL ) && ((!strcmp(p, ".txt")) || (!strcmp(p, ".TXT"))))     // text table (hex addr / data)
         export_file_txt(outfile, &image, verbose);
-      else if ((p != NULL ) && (!strcmp(p, ".bin")))     // binary file
+      else if ((p != NULL ) && ((!strcmp(p, ".bin")) || (!strcmp(p, ".BIN"))))     // binary file
         export_file_bin(outfile, &image, verbose);
       else {
         MemoryImage_free(&image);
@@ -506,11 +445,25 @@ int main(int argc, char ** argv) {
     } // print memory image
 
 
-    // print Fletcher-16 checksum over addresses and data (see https://en.wikipedia.org/wiki/Fletcher%27s_checksum)
+    // print CRC32 checksum over image
     else if (!strcmp(argv[i], "-checksum")) {
 
-      // print to stdout
-      printf("  Fletcher-16 chk = 0x%04x\n", (int) MemoryImage_checksum_fletcher16(&image));
+      if (MemoryImage_isEmpty(&image)) {
+        printf("  CRC32 chk skipped for empty image\n");
+        break;
+      }
+
+      // for each consecutive memory range print CRC32 checksum to stdout
+      MEMIMAGE_ADDR_T address = 0x00;
+      size_t          idxStart, idxEnd;
+      printf("  CRC32-IEEE:\n");
+      while (MemoryImage_getMemoryBlock(&image, address, &idxStart, &idxEnd)) {
+        MEMIMAGE_ADDR_T  addrStart = image.memoryEntries[idxStart].address;
+        MEMIMAGE_ADDR_T  addrEnd   = image.memoryEntries[idxEnd].address;
+        uint32_t         chk = MemoryImage_checksum_crc32(&image, idxStart, idxEnd);
+        printf("    [0x%04" PRIX64 "; 0x%04" PRIX64 "]: 0x%08" PRIX32 "\n", (uint64_t) addrStart, (uint64_t) addrEnd, chk);
+        address = addrEnd + 1;
+      }
 
     } // print checksum
 
@@ -603,9 +556,7 @@ int main(int argc, char ** argv) {
 
 
     // dummy parameter: skip, is treated in 1st pass
-    else {
-      // dummy
-    }
+    else { ; }
 
   } // 2nd pass over commandline arguments
 

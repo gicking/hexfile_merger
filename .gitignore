@@ -28,3 +28,4 @@ testing/*
 .pio/*
 .pioenvs
 .piolibdeps
+.vscode/launch.json

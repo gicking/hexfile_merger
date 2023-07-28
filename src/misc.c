@@ -284,7 +284,7 @@ void setConsoleColor(uint8_t color) {
     flag = 1;
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbiInfo);
     oldColor = csbiInfo.wAttributes;
-    colorBck = (csbiInfo.wAttributes) & (BACKGROUND_BLUE	| BACKGROUND_GREEN | BACKGROUND_RED | BACKGROUND_INTENSITY);
+    colorBck = (csbiInfo.wAttributes) & (BACKGROUND_BLUE | BACKGROUND_GREEN | BACKGROUND_RED | BACKGROUND_INTENSITY);
   }
 
   // set to text color
@@ -544,5 +544,22 @@ bool isHexString(const char *str) {
   return true;
   
 } // isHexString()
+
+
+
+/**
+  \fn bool isLittleEndian(void)
+
+  \return true: little-endian; false: big-endian
+
+  Check if machine is little-endian (e.g. Intel, ARM) or big-endian (e.g. PowerPC, SPARC). Is required e.g. for CRC32 checksum calculation
+*/
+bool isLittleEndian(void) {
+
+  // check storage order of bytes
+  uint16_t value = 1;
+  return (*((uint8_t*) &value) == 1);
+  
+} // isLittleEndian()
 
 // end of file

@@ -1,7 +1,8 @@
 # compiler settings
 CC     = gcc
 CFLAGS = -Wall -I./include -g
-#CFLAGS += -DUSE_FILE_BUFFER		# read file into buffer, then interpret
+#CFLAGS += -DMEMIMAGE_DEBUG					# activate optional debug output for memory image
+#CFLAGS += -DMEMIMAGE_CHK_INCLUDE_ADDRESS	# include addresses into ckecksum over memory image
 LFLAGS = -lm
 
 # OS-dependent delete commands for 'make clean'

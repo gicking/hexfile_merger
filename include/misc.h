@@ -86,6 +86,9 @@ bool isDecString(const char *str);
 /// check is a string represents a hexadecimal number starting with "0x"
 bool isHexString(const char *str);
 
+/// check endianness of machine
+bool isLittleEndian(void);
+
 #endif // _MISC_H_
 
 // end of file
