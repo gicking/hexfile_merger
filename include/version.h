@@ -17,7 +17,7 @@
 #define _SW_VERSION_H_
 
 /// 16b SW version identifier 
-#define VERSION     ((1<<14) | (6<<6) | (2<<1) | (0<<0))     // -> v1.6.2b
+#define VERSION     ((1<<14) | (6<<6) | (2<<1) | (1<<0))     // -> v1.6.2
 
 #endif // _SW_VERSION_H_
 
@@ -27,9 +27,9 @@
 Revision History
 ----------------
 
-v1.6.2 (2023-xx-xx)
+v1.6.2 (2023-07-28)
   - added some internal helper functions to memory image
-  - added Fletcher-16 checksum function to memory image (mainly for testing)
+  - added CRC32-IEEE checksum function to memory image
   
 ----------------
 

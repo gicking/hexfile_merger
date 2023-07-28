@@ -10,6 +10,7 @@ Import files of various formats, apply simple manipulations, and merge them to a
     -import [infile [addr]]             import from file to image. For binary file (*.bin) provide start address (in hex)
     -export [outfile]                   export image to file
     -print                              print image to console
+    -checksum                           print CRC32-IEEE checksum over data ranges in image
     -fill [addrStart addrStop val]      fill specified range with fixed value (addr & val in hex)
     -fillRand [addrStart addrStop]      fill specified range with random values in 0-255 (addr in hex)
     -clip [addrStart addrStop]          clip image to specified range (addr in hex)
@@ -45,6 +46,12 @@ Georg
 ====================================
 
 # Revision History
+
+v1.6.2 (2023-07-28)
+  - added some internal helper functions to memory image
+  - added CRC32-IEEE checksum function to memory image
+  
+----------------
 
 v1.6.1 (2023-07-15)
   - migrate to VSCode / PlatformIO file structure for convenience
