@@ -47,6 +47,11 @@ Georg
 
 # Revision History
 
+v1.6.3b (2023-xx-xx)
+  - just a placeholder for now
+  
+----------------
+
 v1.6.2 (2023-07-28)
   - added some internal helper functions to memory image
   - added CRC32-IEEE checksum function to memory image

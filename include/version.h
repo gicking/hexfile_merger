@@ -17,7 +17,7 @@
 #define _SW_VERSION_H_
 
 /// 16b SW version identifier 
-#define VERSION     ((1<<14) | (6<<6) | (2<<1) | (1<<0))     // -> v1.6.2
+#define VERSION     ((1<<14) | (6<<6) | (3<<1) | (0<<0))     // -> v1.6.3b
 
 #endif // _SW_VERSION_H_
 
@@ -25,6 +25,11 @@
 /********************
 
 Revision History
+----------------
+
+v1.6.3b (2023-xx-xx)
+  - just a placeholder for now
+
 ----------------
 
 v1.6.2 (2023-07-28)
