@@ -1,8 +1,10 @@
 # compiler settings
-CC     = gcc
-CFLAGS = -Wall -I./include -g
-#CFLAGS += -DMEMIMAGE_DEBUG					# activate optional debug output for memory image
-#CFLAGS += -DMEMIMAGE_CHK_INCLUDE_ADDRESS	# include addresses into ckecksum over memory image
+ifeq ($(origin CC), default)
+	CC = $(CROSS_COMPILE)gcc
+endif
+CFLAGS = -Wall -g -I./include
+#CFLAGS += -DMEMIMAGE_DEBUG					# activate memory image debug output 
+#CFLAGS += -DMEMIMAGE_CHK_INCLUDE_ADDRESS	# include addresses into CRC32 checksum
 LFLAGS = -lm
 
 # OS-dependent delete commands for 'make clean'
