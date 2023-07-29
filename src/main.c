@@ -39,12 +39,12 @@
 int main(int argc, char ** argv) {
 
   // local variables
-  char            appname[STRLEN];    // name of application without path
-  char            version[100];       // version as string
-  int             verbose;            // verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
-  MemoryImage_s   image;              // memory image buffer as list of (addr, value)
-  bool            printHelp;          // flag for printing help page
-  char            tmp[STRLEN+106];    // misc string buffer
+  char            appname[STRLEN];      // name of application without path
+  char            version[100];         // version as string
+  int             verbose;              // verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+  MemoryImage_s   image;                // memory image buffer as list of (addr, value)
+  int             printHelp = -1;       // parameter index to print help for
+  char            tmp[STRLEN+106];      // misc string buffer
 
 
   // debug: print arguments
@@ -89,14 +89,13 @@ int main(int argc, char ** argv) {
   // 1st pass of commandline arguments: set global parameters, no import/export yet
   /////////////////
 
-  printHelp = false;
   for (int i=1; i<argc; i++) {
 
     // print help
     if ((!strcmp(argv[i], "-h")) || (!strcmp(argv[i], "-help"))) {
 
       // set flag for printing help
-      printHelp = true;
+      printHelp = 0;
       break;
 
     } // help
@@ -111,13 +110,13 @@ int main(int argc, char ** argv) {
         if ((!isDecString(argv[i])) || (sscanf(argv[i],"%d", &verbose) <= 0) || (verbose < 0) || (verbose > 3))
         {
           printf("\ncommand '-v/-verbose' requires a decimal parameter (0..3)\n");
-          printHelp = true;
+          printHelp = i;
           break;
         }
       }
       else {
         printf("\ncommand '-v/-verbose' requires a decimal parameter (0..3)\n");
-        printHelp = true;
+        printHelp = i;
         break;
       }
       if (verbose < MUTE)   verbose = MUTE;
@@ -133,25 +132,25 @@ int main(int argc, char ** argv) {
       if (i+1<argc) {
         i+=1;
         char *p = strrchr(argv[i], '.');
-        if ((p != NULL ) && (!strcmp(p, ".bin"))) {   // for binary file assert additional address
+        if ((p != NULL ) && ((!strcmp(p, ".bin")) || (!strcmp(p, ".BIN")))) {   // for binary file assert additional address
           if (i+1<argc) {
             i+=1;
             if (!isHexString(argv[i])) {
               printf("\ncommand '-import' requires a hex offset for binary\n");
-              printHelp = true;
+              printHelp = i;
               break;
             }
           }
           else {
             printf("\ncommand '-import' requires a hex offset for binary\n");
-            printHelp = true;
+            printHelp = i;
             break;
           }
         }
       }
       else {
         printf("\ncommand '-import' requires a filename\n");
-        printHelp = true;
+        printHelp = i;
         break;
       }
 
@@ -165,7 +164,7 @@ int main(int argc, char ** argv) {
       }
       else {
         printf("\ncommand '-export' requires a filename\n");
-        printHelp = true;
+        printHelp = i;
         break;
       }
     } // export
@@ -192,14 +191,14 @@ int main(int argc, char ** argv) {
       if (i+3<argc) {
         if ((!isHexString(argv[i+1])) || (!isHexString(argv[i+2])) || (!isHexString(argv[i+3]))) {
           printf("\ncommand '-fill' requires three hex parameters\n");
-          printHelp = true;
+          printHelp = i;
           break;
         }
         i+=3;
       }
       else {
         printf("\ncommand '-fill' requires three hex parameters\n");
-        printHelp = true;
+        printHelp = i;
         break;
       }
     } // fill
@@ -210,14 +209,14 @@ int main(int argc, char ** argv) {
       if (i+2<argc) {
         if ((!isHexString(argv[i+1])) || (!isHexString(argv[i+2]))) {
           printf("\ncommand '-fillRand' requires two hex parameters\n");
-          printHelp = true;
+          printHelp = i;
           break;
         }
         i+=2;
       }
       else {
         printf("\ncommand '-fillRand' requires two hex parameters\n");
-        printHelp = true;
+        printHelp = i;
         break;
       }
     } // fillRand
@@ -228,14 +227,14 @@ int main(int argc, char ** argv) {
       if (i+2<argc) {
         if ((!isHexString(argv[i+1])) || (!isHexString(argv[i+2]))) {
           printf("\ncommand '-clip' requires two hex parameters\n");
-          printHelp = true;
+          printHelp = i;
           break;
         }
         i+=2;
       }
       else {
         printf("\ncommand '-clip' requires two hex parameters\n");
-        printHelp = true;
+        printHelp = i;
         break;
       }
     } // clip
@@ -246,14 +245,14 @@ int main(int argc, char ** argv) {
       if (i+2<argc) {
         if ((!isHexString(argv[i+1])) || (!isHexString(argv[i+2]))) {
           printf("\ncommand '-cut' requires two hex parameters\n");
-          printHelp = true;
+          printHelp = i;
           break;
         }
         i+=2;
       }
       else {
         printf("\ncommand '-cut' requires two hex parameters\n");
-        printHelp = true;
+        printHelp = i;
         break;
       }
     } // cut
@@ -264,14 +263,14 @@ int main(int argc, char ** argv) {
       if (i+3<argc) {
         if ((!isHexString(argv[i+1])) || (!isHexString(argv[i+2])) || (!isHexString(argv[i+3]))) {
           printf("\ncommand '-copy' requires three hex parameters\n");
-          printHelp = true;
+          printHelp = i;
           break;
         }
         i+=3;
       }
       else {
         printf("\ncommand '-copy' requires three hex parameters\n");
-        printHelp = true;
+        printHelp = i;
         break;
       }
     } // copy
@@ -282,14 +281,14 @@ int main(int argc, char ** argv) {
       if (i+3<argc) {
         if ((!isHexString(argv[i+1])) || (!isHexString(argv[i+2])) || (!isHexString(argv[i+3]))) {
           printf("\ncommand '-move' requires three hex parameters\n");
-          printHelp = true;
+          printHelp = i;
           break;
         }
         i+=3;
       }
       else {
         printf("\ncommand '-move' requires three hex parameters\n");
-        printHelp = true;
+        printHelp = i;
         break;
       }
     } // move
@@ -298,7 +297,7 @@ int main(int argc, char ** argv) {
     // else print help
     else {
       printf("\nunknown command '%s' \n", argv[i]);
-      printHelp = true;
+      printHelp = i;
       break;
     }
 
@@ -306,7 +305,7 @@ int main(int argc, char ** argv) {
 
 
   // on request (-h) or in case of error print help page
-  if ((printHelp==true) || (argc == 1)) {
+  if ((printHelp >= 0) || (argc == 1)) {
     printf("\n");
     printf("\n%s (%s)\n\n", appname, version);
     printf("Import files of various formats, apply simple manipulations, and merge them to a single output file.\n");
@@ -343,6 +342,11 @@ int main(int argc, char ** argv) {
     printf("overwrite previous imports. Also outputs only contain the previous imports, i.e.\n");
     printf("intermediate exports only contain the merged content up to that point in time.\n");
     printf("\n");
+
+    // in case of a wrong parameter print index
+    if (printHelp > 0)
+      printf("\nerror occurred in parameter %d\n", printHelp);
+
     Exit(0,0);
   }
 
@@ -383,7 +387,7 @@ int main(int argc, char ** argv) {
 
       // for binary file also get starting address
       char *p = strrchr(infile, '.');
-      if ((p != NULL ) && (strstr(p, ".bin"))) {
+      if ((p != NULL ) && ((strstr(p, ".bin")) || (strstr(p, ".BIN")))) {
         strncpy(tmp, argv[++i], STRLEN-1);
         sscanf(tmp, "%" SCNx64, &addrStart);
       }
